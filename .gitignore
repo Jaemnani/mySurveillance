@@ -1,0 +1,4 @@
+third_party/
+dist/
+*.exe
+*.log

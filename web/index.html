@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#11151c">
+<title>mySurveillance</title>
+<style>
+:root{--bg:#11151c;--panel:#1a202b;--line:#2b3445;--text:#e8ecf3;--dim:#93a0b5;--accent:#4c8dff;--ok:#35c27b;--bad:#ef5b5b;--warn:#e6a93a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Malgun Gothic",sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:8px 12px}
+header b{margin-right:auto}
+nav{display:flex;gap:4px}
+button,input,select{font:inherit;color:inherit}
+button{background:var(--line);border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
+button.primary{background:var(--accent);color:#fff}
+button.danger{background:transparent;color:var(--bad);border:1px solid var(--bad)}
+nav button.on{background:var(--accent);color:#fff}
+input,select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+input[type=checkbox]{width:auto}
+main{max-width:1100px;margin:0 auto;padding:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+video{width:100%;background:#000;border-radius:8px;aspect-ratio:16/9;display:block}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row>*{flex:1;min-width:120px}
+.row>button,.row>.fit{flex:0 0 auto;min-width:0}
+label{display:block;color:var(--dim);font-size:13px;margin:8px 0 3px}
+h3{margin:0 0 8px;font-size:16px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:var(--dim)}
+.recording .dot{background:var(--ok)}.retrying .dot{background:var(--bad)}.starting .dot{background:var(--warn)}
+.dim{color:var(--dim);font-size:13px}
+.err{color:var(--bad);font-size:13px;word-break:break-all}
+.bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin:6px 0}
+.bar i{display:block;height:100%;background:var(--accent)}
+.list{max-height:50vh;overflow:auto}
+.item{display:flex;align-items:center;gap:8px;padding:9px 6px;border-bottom:1px solid var(--line);cursor:pointer}
+.item.on{background:var(--line)}
+.item span{flex:1}
+.item a{color:var(--accent);text-decoration:none;padding:4px 8px}
+#login{max-width:340px;margin:18vh auto;padding:0 16px}
+.hide{display:none!important}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#000c;padding:10px 16px;border-radius:8px;max-width:90vw}
+</style>
+</head>
+<body>
+<div id="login" class="hide">
+  <div class="card">
+    <h3>mySurveillance</h3>
+    <label for="pw">비밀번호</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <p class="err" id="loginErr"></p>
+    <button class="primary" id="loginBtn" style="width:100%">로그인</button>
+  </div>
+</div>
+
+<div id="app" class="hide">
+  <header>
+    <b>mySurveillance</b>
+    <nav>
+      <button data-tab="live" class="on">실시간</button>
+      <button data-tab="rec">녹화</button>
+      <button data-tab="set">설정</button>
+    </nav>
+  </header>
+  <main>
+    <section id="tab-live">
+      <div class="card" id="storageCard"></div>
+      <div class="grid" id="liveGrid"></div>
+    </section>
+
+    <section id="tab-rec" class="hide">
+      <div class="card">
+        <div class="row">
+          <select id="recCam" aria-label="카메라"></select>
+          <input id="recDate" type="date" aria-label="날짜">
+        </div>
+        <video id="player" controls playsinline class="hide" style="margin-top:10px"></video>
+        <div class="dim" id="recInfo" style="margin-top:8px"></div>
+        <div class="list" id="recList"></div>
+      </div>
+    </section>
+
+    <section id="tab-set" class="hide">
+      <div class="card">
+        <h3>저장</h3>
+        <label for="sDir">저장 폴더</label><input id="sDir">
+        <div class="row">
+          <div><label for="sMax">최대 저장 용량 (GB, 0 = 제한 없음)</label><input id="sMax" type="number" min="0" step="1"></div>
+          <div><label for="sFree">디스크에 항상 남겨둘 용량 (GB)</label><input id="sFree" type="number" min="0" step="1"></div>
+          <div><label for="sSeg">파일 하나의 길이 (분)</label><input id="sSeg" type="number" min="1" max="60"></div>
+        </div>
+        <p class="dim">용량이 가득 차면 가장 오래된 녹화부터 자동으로 지워집니다.</p>
+      </div>
+      <div id="camCards"></div>
+      <div class="row" style="margin-bottom:12px">
+        <button id="addCam">+ 카메라 추가</button>
+        <button class="primary" id="saveBtn">설정 저장</button>
+      </div>
+      <div class="card">
+        <h3>비밀번호 변경</h3>
+        <div class="row">
+          <input id="pwCur" type="password" placeholder="현재 비밀번호" autocomplete="current-password">
+          <input id="pwNew" type="password" placeholder="새 비밀번호 (8자 이상)" autocomplete="new-password">
+          <button id="pwBtn">변경</button>
+        </div>
+        <button id="logoutBtn" style="margin-top:10px">로그아웃</button>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="toast" class="hide"></div>
+
+<script src="hls.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const el = (tag, props = {}, ...kids) => {
+  const e = Object.assign(document.createElement(tag), props);
+  kids.forEach(k => e.append(k));
+  return e;
+};
+let toastTimer;
+function toast(msg) {
+  $('toast').textContent = msg; $('toast').classList.remove('hide');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.add('hide'), 3500);
+}
+async function api(path, method = 'GET', body) {
+  const r = await fetch('/api/v1/' + path, {
+    method, headers: body ? {'Content-Type': 'application/json'} : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (r.status === 401 && path !== 'login') { showLogin(); throw new Error('로그인이 필요합니다'); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || ('오류 ' + r.status));
+  return j;
+}
+const gb = b => b < 2**30 ? (b / 2**20).toFixed(0) + ' MB' : (b / 2**30).toFixed(b < 10 * 2**30 ? 2 : 1) + ' GB';
+const hm = t => new Date(t).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false});
+const STATE = {recording: '녹화 중', starting: '연결 중', retrying: '재연결 중', disabled: '꺼짐'};
+
+/* ---------- login ---------- */
+function showLogin() { $('app').classList.add('hide'); $('login').classList.remove('hide'); stopLive(); }
+async function doLogin() {
+  $('loginErr').textContent = '';
+  try { await api('login', 'POST', {password: $('pw').value}); $('pw').value = ''; start(); }
+  catch (e) { $('loginErr').textContent = e.message; }
+}
+$('loginBtn').onclick = doLogin;
+$('pw').onkeydown = e => { if (e.key === 'Enter') doLogin(); };
+$('logoutBtn').onclick = async () => { await api('logout', 'POST', {}).catch(() => {}); showLogin(); };
+
+/* ---------- tabs ---------- */
+let tab = 'live';
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  tab = b.dataset.tab;
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  ['live', 'rec', 'set'].forEach(t => $('tab-' + t).classList.toggle('hide', t !== tab));
+  if (tab === 'live') refreshStatus(); else stopLive();
+  if (tab === 'rec') loadRecordings();
+  if (tab === 'set') loadSettings();
+});
+
+/* ---------- live ---------- */
+const players = {}; // camera id -> {card, video, hls, state}
+function stopLive() {
+  for (const id in players) { players[id].hls && players[id].hls.destroy(); players[id].card.remove(); delete players[id]; }
+}
+function attach(p, url) {
+  if (p.hls) { p.hls.destroy(); p.hls = null; }
+  if (window.Hls && Hls.isSupported()) {
+    p.hls = new Hls({liveSyncDurationCount: 2, manifestLoadingMaxRetry: 20, manifestLoadingRetryDelay: 1500});
+    p.hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) { p.state = ''; } });
+    p.hls.loadSource(url); p.hls.attachMedia(p.video);
+  } else { p.video.src = url; }
+  p.video.play().catch(() => {});
+}
+async function refreshStatus() {
+  let st;
+  try { st = await api('status'); } catch { return; }
+  const s = st.storage, card = $('storageCard');
+  const pct = s.maxBytes ? Math.min(100, s.usedBytes / s.maxBytes * 100) : 0;
+  card.replaceChildren(
+    el('div', {className: 'row'},
+      el('span', {textContent: '저장 공간 ' + gb(s.usedBytes) + (s.maxBytes ? ' / ' + gb(s.maxBytes) : ' (제한 없음)')}),
+      el('span', {className: 'dim fit', textContent: '디스크 여유 ' + gb(s.diskFreeBytes)})),
+    el('div', {className: 'bar'}, el('i', {style: 'width:' + pct + '%'})),
+    el('div', {className: 'dim', textContent: s.oldest ? '가장 오래된 녹화: ' + new Date(s.oldest).toLocaleString('ko-KR') : '아직 녹화가 없습니다'}));
+  if (!st.ffmpeg) card.append(el('div', {className: 'err', textContent: 'ffmpeg를 찾을 수 없어 녹화할 수 없습니다.'}));
+  if (!st.cameras.length) card.append(el('div', {className: 'dim', textContent: '설정 탭에서 카메라를 추가하세요.'}));
+  if (tab !== 'live') return;
+  const ids = new Set(st.cameras.map(c => c.id));
+  for (const id in players) if (!ids.has(id)) { players[id].hls && players[id].hls.destroy(); players[id].card.remove(); delete players[id]; }
+  for (const c of st.cameras) {
+    let p = players[c.id];
+    if (!p) {
+      const video = el('video', {muted: true, autoplay: true, playsInline: true, controls: true});
+      const head = el('div', {style: 'margin-bottom:8px'});
+      const err = el('div', {className: 'err'});
+      p = players[c.id] = {video, head, err, state: '', card: el('div', {className: 'card'}, head, video, err)};
+      $('liveGrid').append(p.card);
+    }
+    p.head.className = c.state;
+    p.head.replaceChildren(el('span', {className: 'dot'}), el('b', {textContent: c.name}), el('span', {className: 'dim', textContent: '  ' + (STATE[c.state] || c.state)}));
+    p.err.textContent = c.state === 'retrying' ? (c.error || '') : '';
+    if (c.state === 'recording' && p.state !== 'recording') attach(p, c.liveUrl);
+    p.state = c.state;
+  }
+}
+setInterval(() => { if (!$('app').classList.contains('hide')) refreshStatus(); }, 5000);
+
+/* ---------- recordings ---------- */
+function localDate(d = new Date()) { return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+async function loadRecordings() {
+  const st = await api('status');
+  const sel = $('recCam'), cur = sel.value;
+  sel.replaceChildren(...st.cameras.map(c => el('option', {value: c.id, textContent: c.name})));
+  if (cur && st.cameras.some(c => c.id === cur)) sel.value = cur;
+  if (!$('recDate').value) $('recDate').value = localDate();
+  const list = $('recList'); list.replaceChildren();
+  if (!sel.value) { $('recInfo').textContent = '카메라가 없습니다.'; return; }
+  const from = new Date($('recDate').value + 'T00:00:00'), to = new Date(from.getTime() + 86400000);
+  const r = await api('recordings?camera=' + encodeURIComponent(sel.value) + '&from=' + encodeURIComponent(from.toISOString()) + '&to=' + encodeURIComponent(to.toISOString()));
+  const recs = r.recordings.reverse();
+  $('recInfo').textContent = recs.length ? recs.length + '개 구간 · 누르면 재생됩니다' : '이 날짜에는 녹화가 없습니다.';
+  for (const rec of recs) {
+    const row = el('div', {className: 'item'},
+      el('span', {textContent: hm(rec.start) + ' ~ ' + hm(rec.end) + (rec.active ? '  (녹화 중)' : '')}),
+      el('span', {className: 'dim fit', style: 'flex:0', textContent: (rec.size / 2**20).toFixed(1) + ' MB'}),
+      el('a', {href: rec.url + '?download=1', textContent: '다운로드', onclick: e => e.stopPropagation()}));
+    row.onclick = () => {
+      list.querySelectorAll('.on').forEach(x => x.classList.remove('on')); row.classList.add('on');
+      const v = $('player'); v.classList.remove('hide'); v.src = rec.url; v.play().catch(() => {});
+    };
+    list.append(row);
+  }
+}
+$('recCam').onchange = $('recDate').onchange = () => loadRecordings().catch(e => toast(e.message));
+
+/* ---------- settings ---------- */
+let cams = [], devices = null;
+const TYPES = {usb: 'USB 카메라 (이 컴퓨터에 연결)', rtsp: 'IP 카메라 / 폰 앱 (RTSP 주소)', http: '폰 앱 / 웹캠 (HTTP·MJPEG 주소)'};
+async function loadSettings() {
+  try {
+    const c = await api('config');
+    $('sDir').value = c.storageDir; $('sMax').value = c.maxStorageGB; $('sFree').value = c.minFreeGB; $('sSeg').value = c.segmentMinutes;
+    cams = c.cameras; renderCams();
+    if (!devices) api('devices').then(d => { devices = d; renderCams(); }).catch(() => {});
+  } catch (e) { toast(e.message); }
+}
+function field(label, input) { return el('div', {}, el('label', {textContent: label}), input); }
+function bind(input, cam, key, kind) {
+  if (kind === 'check') { input.checked = !!cam[key]; input.onchange = () => cam[key] = input.checked; }
+  else { input.value = cam[key] ?? ''; input.oninput = input.onchange = () => cam[key] = kind === 'num' ? (parseInt(input.value) || 0) : input.value; }
+  return input;
+}
+function deviceSelect(cam, key, list, emptyLabel) {
+  const names = [...new Set([...(list || []), cam[key]].filter(Boolean))];
+  const s = el('select', {}, el('option', {value: '', textContent: emptyLabel}), ...names.map(n => el('option', {value: n, textContent: n})));
+  return bind(s, cam, key);
+}
+function renderCams() {
+  $('camCards').replaceChildren(...cams.map((cam, i) => {
+    const type = bind(el('select', {}, ...Object.entries(TYPES).map(([v, t]) => el('option', {value: v, textContent: t}))), cam, 'type');
+    type.onchange = () => { cam.type = type.value; renderCams(); };
+    const card = el('div', {className: 'card'},
+      el('div', {className: 'row'},
+        field('이름', bind(el('input'), cam, 'name')), field('종류', type)));
+    if (cam.type === 'usb') {
+      card.append(el('div', {className: 'row'},
+        field('카메라 장치', deviceSelect(cam, 'videoDevice', devices && devices.video, '선택하세요')),
+        field('마이크 장치', deviceSelect(cam, 'audioDevice', devices && devices.audio, '소리 없음'))));
+      card.append(el('div', {className: 'row'},
+        field('가로 (0 = 자동)', bind(el('input', {type: 'number', min: 0}), cam, 'width', 'num')),
+        field('세로 (0 = 자동)', bind(el('input', {type: 'number', min: 0}), cam, 'height', 'num')),
+        field('초당 프레임 (0 = 자동)', bind(el('input', {type: 'number', min: 0}), cam, 'fps', 'num'))));
+    } else if (cam.type === 'rtsp') {
+      card.append(field('RTSP 주소', bind(el('input', {placeholder: 'rtsp://아이디:비밀번호@192.168.0.10:554/stream1', autocapitalize: 'off', spellcheck: false}), cam, 'url')));
+    } else {
+      card.append(field('영상 주소', bind(el('input', {placeholder: 'http://192.168.0.20:8080/video', autocapitalize: 'off', spellcheck: false}), cam, 'url')));
+      card.append(field('소리 주소 (선택)', bind(el('input', {placeholder: 'http://192.168.0.20:8080/audio.wav', autocapitalize: 'off', spellcheck: false}), cam, 'audioUrl')));
+    }
+    const checks = el('div', {className: 'row', style: 'margin-top:10px'},
+      el('label', {className: 'fit'}, bind(el('input', {type: 'checkbox'}), cam, 'enabled', 'check'), ' 녹화 켜기'),
+      el('label', {className: 'fit'}, bind(el('input', {type: 'checkbox'}), cam, 'audio', 'check'), ' 소리 포함'));
+    if (cam.type === 'rtsp') checks.append(el('label', {className: 'fit'}, bind(el('input', {type: 'checkbox'}), cam, 'transcode', 'check'), ' H.264로 변환 (폰에서 재생이 안 될 때)'));
+    checks.append(el('span'), el('button', {className: 'danger', textContent: '삭제', onclick: () => {
+      if (confirm('"' + (cam.name || '카메라') + '" 설정을 삭제할까요? 이미 저장된 녹화는 용량이 찰 때까지 남습니다.')) { cams.splice(i, 1); renderCams(); }
+    }}));
+    card.append(checks);
+    return card;
+  }));
+}
+$('addCam').onclick = () => { cams.push({name: '카메라 ' + (cams.length + 1), type: 'rtsp', enabled: true, audio: true}); renderCams(); };
+$('saveBtn').onclick = async () => {
+  try {
+    const c = await api('config', 'PUT', {storageDir: $('sDir').value, maxStorageGB: parseFloat($('sMax').value) || 0,
+      minFreeGB: parseFloat($('sFree').value) || 0, segmentMinutes: parseInt($('sSeg').value) || 5, cameras: cams});
+    cams = c.cameras; renderCams(); toast('저장했습니다. 녹화에 바로 적용됩니다.');
+  } catch (e) { toast(e.message); }
+};
+$('pwBtn').onclick = async () => {
+  try { await api('password', 'POST', {current: $('pwCur').value, new: $('pwNew').value}); $('pwCur').value = $('pwNew').value = ''; toast('비밀번호를 변경했습니다.'); }
+  catch (e) { toast(e.message); }
+};
+
+/* ---------- boot ---------- */
+async function start() {
+  try { await api('status'); } catch { return; }
+  $('login').classList.add('hide'); $('app').classList.remove('hide');
+  refreshStatus();
+}
+start();
+</script>
+</body>
+</html>
