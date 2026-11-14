@@ -31,8 +31,9 @@ type App struct {
 	vod     vodCache
 	limiter loginLimiter
 
-	mu  sync.RWMutex
-	cfg Config
+	updMu sync.Mutex // serializes Update, including applying to recorders
+	mu    sync.RWMutex
+	cfg   Config
 }
 
 func (a *App) Config() Config {
@@ -42,7 +43,13 @@ func (a *App) Config() Config {
 }
 
 // Update changes the config, persists it and re-applies it to the recorders.
+//
+// Whole updates run one at a time: applying to the recorders can take seconds
+// (ffmpeg is stopped gracefully), and two overlapping updates must not apply
+// their snapshots out of order. Readers of Config are not blocked meanwhile.
 func (a *App) Update(fn func(*Config) error) error {
+	a.updMu.Lock()
+	defer a.updMu.Unlock()
 	a.mu.Lock()
 	next := a.cfg.clone()
 	if err := fn(&next); err != nil {

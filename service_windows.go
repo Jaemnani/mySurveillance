@@ -95,6 +95,11 @@ func installAutostart(userMode bool, dataDir string) error {
 	if err := s.SetRecoveryActions([]mgr.RecoveryAction{restart, restart, restart}, 3600); err != nil {
 		return err
 	}
+	// Also restart when the app stops by itself and reports an error (e.g. the
+	// storage drive was not ready yet); by default Windows only restarts crashes.
+	if err := s.SetRecoveryActionsOnNonCrashFailures(true); err != nil {
+		return err
+	}
 	return s.Start()
 }
 

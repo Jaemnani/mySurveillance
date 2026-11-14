@@ -40,9 +40,14 @@ func onvifStreamURI(xaddr, user, pass string) (string, error) {
 	media := xaddr
 	if body, err := onvifCall(xaddr, user, pass, `<GetCapabilities xmlns="http://www.onvif.org/ver10/device/wsdl"><Category>Media</Category></GetCapabilities>`); err == nil {
 		if m := mediaXAddrRe.FindStringSubmatch(body); m != nil {
-			// keep the address we can reach; cameras sometimes report another one
-			if mu, err := url.Parse(strings.TrimSpace(m[1])); err == nil {
-				mu.Scheme, mu.Host = dev.Scheme, dev.Host
+			// Keep the host we can reach (cameras sometimes report another one),
+			// but the media service may live on its own port and scheme.
+			if mu, err := url.Parse(strings.TrimSpace(m[1])); err == nil && (mu.Scheme == "http" || mu.Scheme == "https") {
+				if port := mu.Port(); port != "" {
+					mu.Host = net.JoinHostPort(dev.Hostname(), port)
+				} else {
+					mu.Host = dev.Hostname()
+				}
 				media = mu.String()
 			}
 		}
