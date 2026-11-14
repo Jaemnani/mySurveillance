@@ -68,6 +68,26 @@ func TestCopyOutputTags(t *testing.T) {
 			if _, err := os.Stat(filepath.Join(dir, liveSubdir, "c", "index.m3u8")); err != nil {
 				t.Error("live playlist missing")
 			}
+			// the recording must be seekable as a byte-range playlist (the file may end with a small index box)
+			idx, err := indexFMP4(recs[0])
+			if err != nil {
+				t.Fatalf("indexFMP4: %v", err)
+			}
+			fi, _ := os.Stat(recs[0])
+			var total float64
+			end := idx.InitLen
+			for _, sg := range idx.Segs {
+				if sg.Off != end {
+					t.Errorf("segment at %d, want %d", sg.Off, end)
+				}
+				end, total = sg.Off+sg.Len, total+sg.Dur
+			}
+			if fi.Size()-end > 4096 || end > fi.Size() || total < 4 || total > 7 || len(idx.Segs) < 2 {
+				t.Errorf("index covers %d of %d bytes, %.1fs in %d segments", end, fi.Size(), total, len(idx.Segs))
+			}
+			if pl := idx.m3u8("x.mp4"); !strings.Contains(pl, `#EXT-X-MAP:URI="x.mp4"`) || !strings.HasSuffix(pl, "#EXT-X-ENDLIST\n") {
+				t.Errorf("playlist: %s", pl)
+			}
 		})
 	}
 }

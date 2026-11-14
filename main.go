@@ -28,6 +28,7 @@ type App struct {
 	ffmpeg  string
 	mgr     *Manager
 	store   *Storage
+	vod     vodCache
 	limiter loginLimiter
 
 	mu  sync.RWMutex

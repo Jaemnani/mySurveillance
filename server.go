@@ -4,8 +4,11 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
+	"math"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -90,7 +93,13 @@ func (a *App) routes() http.Handler {
 	mux := http.NewServeMux()
 
 	sub, _ := fs.Sub(webFS, "web")
-	mux.Handle("GET /", http.FileServerFS(sub))
+	static := http.FileServerFS(sub)
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		// The UI ships inside the program; make browsers re-check it so a new
+		// build shows up on a plain reload.
+		w.Header().Set("Cache-Control", "no-cache")
+		static.ServeHTTP(w, r)
+	})
 
 	mux.HandleFunc("POST /api/v1/login", a.handleLogin)
 	mux.HandleFunc("POST /api/v1/logout", a.auth(a.handleLogout))
@@ -227,11 +236,17 @@ func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 		Error   string     `json:"error,omitempty"`
 		Since   *time.Time `json:"since,omitempty"`
 		LiveURL string     `json:"liveUrl"`
+		Source  string     `json:"source"` // where the video comes from, without credentials
 	}
 	cams := []camOut{}
 	for _, c := range cfg.Cameras {
 		o := camOut{ID: c.ID, Name: c.Name, Type: c.Type, Enabled: c.Enabled, Audio: c.Audio,
 			State: "disabled", LiveURL: "/live/" + c.ID + "/index.m3u8"}
+		if o.Source = c.VideoDevice; c.Type != "usb" {
+			if u, err := url.Parse(c.URL); err == nil {
+				o.Source = u.Host
+			}
+		}
 		if st, ok := states[c.ID]; ok {
 			since := st.Since
 			o.State, o.Error, o.Since = st.State, st.Error, &since
@@ -250,18 +265,16 @@ func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 type settings struct {
-	StorageDir     string   `json:"storageDir"`
-	LimitBy        string   `json:"limitBy"`
-	MaxDays        float64  `json:"maxDays"`
-	MaxStorageGB   float64  `json:"maxStorageGB"`
-	MinFreeGB      float64  `json:"minFreeGB"`
-	SegmentMinutes int      `json:"segmentMinutes"`
-	Cameras        []Camera `json:"cameras"`
+	StorageDir   string   `json:"storageDir"`
+	LimitBy      string   `json:"limitBy"`
+	MaxDays      float64  `json:"maxDays"`
+	MaxStorageGB float64  `json:"maxStorageGB"`
+	Cameras      []Camera `json:"cameras"`
 }
 
 func (a *App) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	c := a.Config()
-	writeJSON(w, 200, settings{c.StorageDir, c.LimitBy, c.MaxDays, c.MaxStorageGB, c.MinFreeGB, c.SegmentMinutes, c.Cameras})
+	writeJSON(w, 200, settings{c.StorageDir, c.LimitBy, c.MaxDays, c.MaxStorageGB, c.Cameras})
 }
 
 func (a *App) handlePutConfig(w http.ResponseWriter, r *http.Request) {
@@ -271,13 +284,15 @@ func (a *App) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	var verr error
 	err := a.Update(func(c *Config) error {
-		c.StorageDir, c.MaxStorageGB, c.MinFreeGB, c.SegmentMinutes = s.StorageDir, s.MaxStorageGB, s.MinFreeGB, s.SegmentMinutes
+		c.StorageDir, c.MaxStorageGB = s.StorageDir, s.MaxStorageGB
 		c.LimitBy, c.MaxDays = s.LimitBy, s.MaxDays
 		c.Cameras = s.Cameras
 		if c.Cameras == nil {
 			c.Cameras = []Camera{}
 		}
-		verr = validateSettings(c)
+		if verr = validateSettings(c); verr == nil {
+			a.capLimits(c)
+		}
 		return verr
 	})
 	if verr != nil {
@@ -289,6 +304,29 @@ func (a *App) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.handleGetConfig(w, r)
+}
+
+// capLimits keeps the retention limit within what the disk can hold: the
+// space recordings use now plus the free space, minus the reserve.
+func (a *App) capLimits(c *Config) {
+	free, total, err := diskFree(c.StorageDir)
+	if err != nil || total == 0 {
+		return
+	}
+	st := a.store.Status()
+	room := float64(st.UsedBytes) + float64(free) - float64(reserveBytes(total))
+	if room < 0 {
+		room = 0
+	}
+	if c.LimitBy == "size" {
+		if gb := math.Floor(room/(1<<30)*10) / 10; c.MaxStorageGB > gb {
+			c.MaxStorageGB = gb
+		}
+	} else if st.BytesPerDay > 0 {
+		if days := math.Floor(room/float64(st.BytesPerDay)*10) / 10; c.MaxDays > days {
+			c.MaxDays = days
+		}
+	}
 }
 
 func (a *App) handleRecordings(w http.ResponseWriter, r *http.Request) {
@@ -323,8 +361,23 @@ func (a *App) handleRecordings(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleRecFile(w http.ResponseWriter, r *http.Request) {
 	cam, file := r.PathValue("cam"), r.PathValue("file")
+	list := strings.HasSuffix(file, ".m3u8")
+	if list {
+		file = strings.TrimSuffix(file, ".m3u8") + ".mp4"
+	}
 	if !camIDRe.MatchString(cam) || !recFileRe.MatchString(file) {
 		http.NotFound(w, r)
+		return
+	}
+	if list { // the same recording as a seekable playlist of byte ranges
+		idx, err := a.vod.get(filepath.Join(a.Config().StorageDir, recSubdir, cam, file))
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
+		w.Header().Set("Cache-Control", "private, no-store")
+		io.WriteString(w, idx.m3u8(file))
 		return
 	}
 	if r.URL.Query().Get("download") != "" {

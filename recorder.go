@@ -24,6 +24,10 @@ const (
 	liveSubdir   = "live"
 	recTimeFmt   = "20060102-150405"
 	stallTimeout = 45 * time.Second
+	// Recording files are cut at this length. Playback seeks inside a file by
+	// byte range, so the length only trades the number of files against how
+	// much one file holds.
+	segmentMinutes = 10
 )
 
 // spec is everything that, when changed, requires restarting a camera's ffmpeg.
@@ -66,7 +70,7 @@ func (m *Manager) Apply(cfg Config, ffmpeg string) {
 	if ffmpeg != "" {
 		for _, c := range cfg.Cameras {
 			if c.Enabled {
-				want[c.ID] = spec{c, cfg.StorageDir, cfg.SegmentMinutes * 60, ffmpeg}
+				want[c.ID] = spec{c, cfg.StorageDir, segmentMinutes * 60, ffmpeg}
 			}
 		}
 	}

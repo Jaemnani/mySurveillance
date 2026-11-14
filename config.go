@@ -47,17 +47,15 @@ type Config struct {
 	// LimitBy picks which limit deletes old recordings: "days" keeps MaxDays
 	// of footage, "size" keeps MaxStorageGB. The other value is only an
 	// estimate derived from the cameras' measured bitrate.
-	LimitBy        string   `json:"limitBy"`
-	MaxDays        float64  `json:"maxDays"`
-	MaxStorageGB   float64  `json:"maxStorageGB"`
-	MinFreeGB      float64  `json:"minFreeGB"`
-	SegmentMinutes int      `json:"segmentMinutes"`
-	Cameras        []Camera `json:"cameras"`
-	FFmpegPath     string   `json:"ffmpegPath,omitempty"`
-	TLSCert        string   `json:"tlsCert,omitempty"`
-	TLSKey         string   `json:"tlsKey,omitempty"`
-	PasswordHash   string   `json:"passwordHash"`
-	Tokens         []Token  `json:"tokens,omitempty"`
+	LimitBy      string   `json:"limitBy"`
+	MaxDays      float64  `json:"maxDays"`
+	MaxStorageGB float64  `json:"maxStorageGB"`
+	Cameras      []Camera `json:"cameras"`
+	FFmpegPath   string   `json:"ffmpegPath,omitempty"`
+	TLSCert      string   `json:"tlsCert,omitempty"`
+	TLSKey       string   `json:"tlsKey,omitempty"`
+	PasswordHash string   `json:"passwordHash"`
+	Tokens       []Token  `json:"tokens,omitempty"`
 }
 
 func (c Config) clone() Config {
@@ -85,14 +83,12 @@ func defaultDataDir() string {
 
 func defaultConfig(dataDir string) Config {
 	return Config{
-		Listen:         ":8787",
-		StorageDir:     filepath.Join(dataDir, "recordings"),
-		LimitBy:        "days",
-		MaxDays:        30,
-		MaxStorageGB:   50,
-		MinFreeGB:      2,
-		SegmentMinutes: 5,
-		Cameras:        []Camera{},
+		Listen:       ":8787",
+		StorageDir:   filepath.Join(dataDir, "recordings"),
+		LimitBy:      "days",
+		MaxDays:      30,
+		MaxStorageGB: 50,
+		Cameras:      []Camera{},
 	}
 }
 
@@ -137,7 +133,7 @@ func validateSettings(c *Config) error {
 	if err := os.MkdirAll(c.StorageDir, 0o755); err != nil {
 		return fmt.Errorf("저장 폴더를 만들 수 없습니다: %v", err)
 	}
-	if c.MaxStorageGB < 0 || c.MinFreeGB < 0 {
+	if c.MaxStorageGB < 0 {
 		return errors.New("용량은 0 이상이어야 합니다")
 	}
 	if c.LimitBy == "" {
@@ -151,9 +147,6 @@ func validateSettings(c *Config) error {
 	}
 	if c.LimitBy == "size" && c.MaxStorageGB > 0 && c.MaxStorageGB < 0.2 {
 		return errors.New("최대 저장 용량은 0.2GB 이상이어야 합니다 (0 = 제한 없음)")
-	}
-	if c.SegmentMinutes < 1 || c.SegmentMinutes > 60 {
-		return errors.New("파일 길이는 1~60분 사이여야 합니다")
 	}
 	seen := map[string]bool{}
 	for i := range c.Cameras {

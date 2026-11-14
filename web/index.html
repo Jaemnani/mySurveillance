@@ -6,42 +6,144 @@
 <meta name="theme-color" content="#11151c">
 <title>mySurveillance</title>
 <style>
-:root{--bg:#11151c;--panel:#1a202b;--line:#2b3445;--text:#e8ecf3;--dim:#93a0b5;--accent:#4c8dff;--ok:#35c27b;--bad:#ef5b5b;--warn:#e6a93a}
+:root{--bg:#0c0e12;--panel:#13161b;--raise:#1c2027;--line:#252a33;--text:#e7e9ee;--dim:#8a92a0;--accent:#4f8cff;--ok:#3ecf8e;--bad:#f0494f;--warn:#f0b03a;--mono:ui-monospace,"SF Mono","Cascadia Mono",Consolas,monospace}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Malgun Gothic",sans-serif}
-header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:8px 12px}
-header b{margin-right:auto}
-nav{display:flex;gap:4px}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Malgun Gothic",sans-serif;overflow:hidden}
 button,input,select{font:inherit;color:inherit}
-button{background:var(--line);border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
-button.primary{background:var(--accent);color:#fff}
+button{background:var(--raise);border:1px solid var(--line);border-radius:10px;padding:7px 12px;cursor:pointer;white-space:nowrap;transition:background .12s,border-color .12s,color .12s}
+button:hover:not(:disabled){background:#252a33}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.ib{display:inline-flex;align-items:center;justify-content:center;gap:4px;width:36px;height:36px;padding:0;background:transparent;border-color:transparent;color:var(--dim)}
+.ib:hover:not(:disabled){background:var(--raise);color:var(--text)}
+.ib.on{background:var(--accent);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+button.primary,button.primary:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:#fff}
 button.danger{background:transparent;color:var(--bad);border:1px solid var(--bad)}
-nav button.on{background:var(--accent);color:#fff}
-input,select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+button.on,button.on:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:#fff}
+input,select{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:7px 10px;width:100%}
 input[type=checkbox]{width:auto}
-main{max-width:1100px;margin:0 auto;padding:12px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
-.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
-video{width:100%;background:#000;border-radius:8px;aspect-ratio:16/9;display:block}
+label{display:block;color:var(--dim);font-size:13px;margin:8px 0 3px}
+h3{margin:0 0 8px;font-size:16px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .row>*{flex:1;min-width:120px}
 .row>button,.row>.fit{flex:0 0 auto;min-width:0}
-label{display:block;color:var(--dim);font-size:13px;margin:8px 0 3px}
-h3{margin:0 0 8px;font-size:16px}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:var(--dim)}
 .recording .dot{background:var(--ok)}.retrying .dot{background:var(--bad)}.starting .dot{background:var(--warn)}
 .dim{color:var(--dim);font-size:13px}
 .err{color:var(--bad);font-size:13px;word-break:break-all}
-.bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin:6px 0}
-.bar i{display:block;height:100%;background:var(--accent)}
-.list{max-height:50vh;overflow:auto}
-.item{display:flex;align-items:center;gap:8px;padding:9px 6px;border-bottom:1px solid var(--line);cursor:pointer}
-.item.on{background:var(--line)}
-.item span{flex:1}
-.item a{color:var(--accent);text-decoration:none;padding:4px 8px}
-#login{max-width:340px;margin:18vh auto;padding:0 16px}
 .hide{display:none!important}
-#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#000c;padding:10px 16px;border-radius:8px;max-width:90vw}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+#login{max-width:340px;margin:18vh auto;padding:0 16px}
+#toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#000d;padding:10px 16px;border-radius:8px;max-width:90vw;z-index:50}
+
+/* main screen: header, video wall, timeline */
+#app{height:100dvh;display:flex;flex-direction:column}
+#top{display:flex;align-items:center;gap:10px;height:48px;padding:0 10px 0 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:8px;font-size:15px;letter-spacing:.2px;color:var(--dim);white-space:nowrap}
+.brand b{color:var(--text);font-weight:650}
+.chip{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 10px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;color:var(--dim);white-space:nowrap}
+.chip b{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+.chip .dot{margin:0;width:7px;height:7px}
+.chip.ok .dot{background:var(--ok);box-shadow:0 0 0 3px #3ecf8e22}.chip.bad .dot{background:var(--bad)}.chip.warn .dot{background:var(--warn)}
+.meter{display:inline-block;width:54px;height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:2px}
+#top .sp{flex:1}
+#layoutBar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line)}
+#layoutBar .num{display:inline-flex;align-items:center;gap:6px}
+#layoutBar .num button{padding:4px 11px}
+#grid{flex:1;min-height:0;display:grid;gap:2px;background:#000}
+.cell{position:relative;background:#05070a;overflow:hidden;min-width:0;min-height:0}
+.cell.big{grid-column:span 2;grid-row:span 2}
+.cell video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;transform-origin:0 0}
+.cell.zoomed{cursor:grab}.cell.zoomed:active{cursor:grabbing}
+#grid.cover .cell video{object-fit:cover}
+#grid.solo .cell{display:none}
+#grid.solo .cell.solo{display:block;grid-column:1/-1;grid-row:1/-1}
+.cell .tag{position:absolute;left:6px;top:6px;background:#000a;border-radius:6px;padding:2px 8px;font-size:13px;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
+.cell .tools{position:absolute;right:6px;top:6px;display:flex;gap:4px;opacity:0;transition:opacity .15s}
+.cell:hover .tools,.cell .tools:focus-within,#grid.edit .cell .tools{opacity:1}
+.cell .tools button,.cell .tools a{background:#000a;color:var(--text);border-radius:6px;padding:2px 8px;font-size:13px;text-decoration:none}
+.cell .msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px 12px;color:var(--dim);font-size:13px;pointer-events:none;word-break:break-all}
+.cell .edit{position:absolute;left:8px;right:8px;bottom:8px;display:none;gap:6px}
+#grid.edit .cell .edit{display:flex}
+.cell .edit select{background:#000c}
+.cell .edit button{flex:0 0 auto}
+#grid.edit .cell{outline:1px dashed var(--line);outline-offset:-1px}
+
+#bar{background:var(--panel);border-top:1px solid var(--line);padding:8px 12px calc(8px + env(safe-area-inset-bottom))}
+#tl{position:relative;height:44px;background:var(--bg);border:1px solid var(--line);border-radius:10px;cursor:pointer;overflow:hidden;touch-action:none;user-select:none}
+#tl .rng{position:absolute;top:6px;height:8px;background:var(--accent);opacity:.8;min-width:1px;border-radius:2px}
+#tl .future{position:absolute;top:0;bottom:0;right:0;background:repeating-linear-gradient(135deg,#0000 0 6px,#ffffff0d 6px 12px)}
+#tl .tick{position:absolute;bottom:0;font-size:11px;color:var(--dim);border-left:1px solid var(--line);padding-left:4px;height:24px;line-height:28px;white-space:nowrap;pointer-events:none}
+#tl .tick.day{color:var(--text);border-left-color:var(--dim);height:100%;display:flex;align-items:flex-end;line-height:20px}
+#tl .cur{position:absolute;top:0;bottom:0;width:2px;background:#fff;pointer-events:none;box-shadow:0 0 0 1px #0008}
+#tl .cur::before{content:"";position:absolute;left:-4px;top:-1px;width:10px;height:10px;border-radius:50%;background:#fff}
+#ctl{display:grid;grid-template-columns:1fr auto 1fr;grid-template-areas:"left mid right";align-items:center;gap:8px 12px;margin-top:8px}
+#ctl .grp{display:flex;align-items:center;gap:6px;min-width:0}
+#ctl .left{grid-area:left;gap:12px}#ctl .mid{grid-area:mid;gap:4px}#ctl .right{grid-area:right;justify-content:flex-end}
+#clock{display:flex;flex-direction:column;line-height:1.15;white-space:nowrap}
+#cDate{font-size:11.5px;color:var(--dim);letter-spacing:.3px}
+#cTime{font-family:var(--mono);font-size:21px;font-weight:600;letter-spacing:.5px;font-variant-numeric:tabular-nums}
+#liveBtn{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 11px;border-radius:999px;background:transparent;border:1px solid var(--line);color:var(--dim);font-size:11.5px;font-weight:700;letter-spacing:1.2px}
+#liveBtn i{width:7px;height:7px;border-radius:50%;border:1.5px solid currentColor}
+#liveBtn:hover{color:var(--text);border-color:var(--dim);background:transparent}
+#liveBtn.on,#liveBtn.on:hover{background:var(--bad);border-color:var(--bad);color:#fff;cursor:default}
+#liveBtn.on i{background:#fff;border-color:#fff;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){#liveBtn.on i{animation:none}}
+#ctl .mid .ib{width:40px;height:40px;border-radius:50%}
+#ctl .mid .ib.txt{width:auto;padding:0 10px;border-radius:999px;font-size:12px}
+#bPlay{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;margin:0 6px;padding:0;border-radius:50%;background:var(--text);border-color:var(--text);color:#0c0e12}
+#bPlay:hover:not(:disabled){background:#fff;border-color:#fff}
+#rate{appearance:none;-webkit-appearance:none;width:auto;height:32px;padding:0 12px;border-radius:999px;background:var(--raise);font-size:12.5px;font-variant-numeric:tabular-nums;text-align:center;cursor:pointer}
+#rate:disabled{opacity:.4;cursor:default}
+.pick{position:relative;display:inline-flex}
+#cal{position:absolute;right:0;bottom:calc(100% + 12px);width:292px;padding:14px 14px 12px;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 16px 48px #000b;z-index:20}
+#cal .head{display:flex;align-items:center;margin-bottom:6px}
+#cal .head b{flex:1;text-align:center;font-size:14px;font-weight:600;letter-spacing:.2px}
+#cal .head .ib{width:30px;height:30px;border-radius:50%}
+#cal .days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+#cal .wd{padding:6px 0 4px;font-size:11px;color:var(--dim);text-align:center}
+#cal .wd:first-child{color:#d98a8e}
+#cal .d{position:relative;height:36px;padding:0;border:0;border-radius:50%;background:transparent;font-size:13px;font-variant-numeric:tabular-nums;justify-self:center;width:36px}
+#cal .d:hover:not(:disabled){background:var(--raise)}
+#cal .d:disabled{color:#454b57;opacity:1}
+#cal .d.has::after{content:"";position:absolute;left:50%;bottom:5px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--accent)}
+#cal .d.today{box-shadow:inset 0 0 0 1px var(--dim)}
+#cal .d.sel,#cal .d.sel:hover{background:var(--accent);color:#fff;box-shadow:none}
+#cal .d.sel::after{background:#fff}
+#cal .time{display:flex;align-items:center;justify-content:center;gap:6px;margin:12px 0 12px;padding-top:12px;border-top:1px solid var(--line);color:var(--dim)}
+#cal .time input{width:52px;height:38px;padding:0;text-align:center;font:600 17px var(--mono);border-radius:10px;background:var(--bg)}
+#cal .time small{font-size:11.5px;margin-right:6px}
+#cal .foot{display:flex;gap:8px}
+#cal .foot button{height:34px;flex:1;font-size:13px}
+#cal .legend{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:var(--dim)}
+#cal .legend i{width:4px;height:4px;border-radius:50%;background:var(--accent)}
+.seg{display:inline-flex;align-items:center;height:32px;background:var(--raise);border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{width:30px;height:100%;padding:0;border:0;border-radius:0;background:transparent;color:var(--dim);font-size:15px}
+.seg button:hover:not(:disabled){background:#252a33;color:var(--text)}
+.seg span{min-width:58px;padding:0 2px;font-size:12px;color:var(--text);text-align:center;white-space:nowrap;font-variant-numeric:tabular-nums}
+#tlWrap{position:relative}
+#tlTip{position:absolute;bottom:calc(100% + 6px);transform:translateX(-50%);background:#000e;border:1px solid var(--line);border-radius:6px;padding:2px 8px;font:12px var(--mono);white-space:nowrap;pointer-events:none}
+@media (max-width:760px){#ctl{grid-template-columns:1fr auto;grid-template-areas:"left right" "mid mid"}#ctl .mid{justify-content:center}#cTime{font-size:18px}}
+
+/* settings window */
+dialog{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:0;width:min(760px,96vw);max-height:92dvh;overflow:hidden}
+dialog[open]{display:flex;flex-direction:column}
+dialog::backdrop{background:#000a}
+#setBody{padding:14px;overflow:auto;flex:1;min-height:0}
+#setHead,#setFoot{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--panel)}
+#setHead{border-bottom:1px solid var(--line)}#setFoot{border-top:1px solid var(--line);justify-content:flex-end}
+#setHead b{flex:1;font-size:16px}
+.cam{border-top:1px solid var(--line)}
+.cam .sum{display:flex;align-items:center;gap:8px;padding:10px 4px;cursor:pointer}
+.cam .sum .name{flex:1;min-width:0}
+.cam .sum .right{text-align:right}
+.cam .form{padding:0 4px 12px}
+.badge{font-size:12px;border:1px solid var(--warn);color:var(--warn);border-radius:6px;padding:0 6px;margin-left:6px}
+.found{padding:10px 4px;border-top:1px solid var(--line)}
+@media (max-width:640px){#chipStore .meter{display:none}.brand span{display:none}}
 </style>
 </head>
 <body>
@@ -56,73 +158,90 @@ h3{margin:0 0 8px;font-size:16px}
 </div>
 
 <div id="app" class="hide">
-  <header>
-    <b>mySurveillance</b>
-    <nav>
-      <button data-tab="live" class="on">실시간</button>
-      <button data-tab="rec">녹화</button>
-      <button data-tab="set">설정</button>
-    </nav>
-  </header>
-  <main>
-    <section id="tab-live">
-      <div class="card" id="storageCard"></div>
-      <div class="grid" id="liveGrid"></div>
-    </section>
-
-    <section id="tab-rec" class="hide">
-      <div class="card">
-        <div class="row">
-          <select id="recCam" aria-label="카메라"></select>
-          <input id="recDate" type="date" aria-label="날짜">
-        </div>
-        <video id="player" controls playsinline class="hide" style="margin-top:10px"></video>
-        <div class="dim" id="recInfo" style="margin-top:8px"></div>
-        <div class="list" id="recList"></div>
+  <div id="top">
+    <div class="brand"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3.6" fill="#f0494f"/></svg><span>my<b>Surveillance</b></span></div>
+    <span class="chip" id="chipRec"><i class="dot"></i><span></span></span>
+    <span class="chip" id="chipStore"><span></span><i class="meter"><i></i></i></span>
+    <span class="sp"></span>
+    <button class="ib" id="layoutBtn" title="화면 배치" aria-label="화면 배치"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></button>
+    <button class="ib" id="setBtn" title="설정" aria-label="설정"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg></button>
+  </div>
+  <div id="layoutBar" class="hide">
+    <span class="num">가로 <button id="colsDn">−</button><b id="colsN"></b><button id="colsUp">+</button></span>
+    <span class="num">세로 <button id="rowsDn">−</button><b id="rowsN"></b><button id="rowsUp">+</button></span>
+    <button id="fitBtn"></button>
+    <button id="autoBtn">자동 배치</button>
+    <span class="dim" style="flex:1">칸마다 보여줄 카메라를 고르세요. "크게"는 그 칸을 2×2로 키웁니다.</span>
+    <button class="primary" id="layoutDone">완료</button>
+  </div>
+  <div id="grid"></div>
+  <div id="bar">
+    <div id="tlWrap"><div id="tl"></div><div id="tlTip" class="hide"></div></div>
+    <div id="ctl">
+      <div class="grp left">
+        <div id="clock"><span id="cDate"></span><span id="cTime"></span></div>
+        <button id="liveBtn" title="실시간으로 돌아가기"><i></i>LIVE</button>
       </div>
-    </section>
-
-    <section id="tab-set" class="hide">
-      <div class="card">
-        <h3>저장</h3>
-        <label for="sDir">저장 폴더</label><input id="sDir">
-        <div class="row">
-          <div><label for="sDays">최대 저장 기간 (일, 0 = 제한 없음)</label><input id="sDays" type="number" min="0" step="1"></div>
-          <div><label for="sMax">최대 저장 용량 (GB, 0 = 제한 없음)</label><input id="sMax" type="number" min="0" step="1"></div>
-        </div>
-        <p class="dim" id="sLimitHint"></p>
-        <div class="row">
-          <div><label for="sFree">디스크에 항상 남겨둘 용량 (GB)</label><input id="sFree" type="number" min="0" step="1"></div>
-          <div><label for="sSeg">파일 하나의 길이 (분)</label><input id="sSeg" type="number" min="1" max="60"></div>
-        </div>
-        <p class="dim">기간과 용량 중 마지막으로 입력한 쪽이 기준이 되고, 다른 쪽은 현재 카메라의 실제 사용량으로 계산됩니다. 기준을 넘으면 가장 오래된 녹화부터 자동으로 지워집니다.</p>
+      <div class="grp mid">
+        <button class="ib txt" id="bM60" title="1분 전"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 6l-6 6 6 6M19 6l-6 6 6 6"/></svg>1분</button>
+        <button class="ib" id="bM10" title="10초 전 (←)" aria-label="10초 전"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a7.5 7.5 0 1 1-6.9 4.6"/><path d="M4.6 4.6v5h5"/><text x="12" y="15.6" font-size="7.5" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">10</text></svg></button>
+        <button id="bPlay" title="재생/일시정지 (스페이스)" aria-label="재생/일시정지"></button>
+        <button class="ib" id="bP10" title="10초 뒤 (→)" aria-label="10초 뒤"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a7.5 7.5 0 1 0 6.9 4.6"/><path d="M19.4 4.6v5h-5"/><text x="12" y="15.6" font-size="7.5" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">10</text></svg></button>
+        <button class="ib txt" id="bP60" title="1분 뒤">1분<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 6l6 6-6 6M5 6l6 6-6 6"/></svg></button>
       </div>
-      <div class="card">
-        <div class="row">
-          <h3 style="margin:0">카메라 자동 검색</h3>
-          <button class="primary" id="scanBtn">검색</button>
-        </div>
-        <p class="dim">USB 카메라, 네트워크의 IP 카메라(ONVIF·Hikvision·Dahua), 폰 카메라 앱(IP Webcam·DroidCam)을 찾습니다. 폰은 앱에서 서버를 시작한 상태여야 합니다.</p>
+      <div class="grp right">
+        <select id="rate" aria-label="재생 속도" title="재생 속도"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select>
+        <span class="pick"><button class="ib" id="whenBtn" title="날짜·시각을 골라 이동" aria-label="날짜·시각을 골라 이동" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg></button>
+          <div id="cal" class="hide" role="dialog" aria-label="날짜와 시각 선택">
+            <div class="head"><button class="ib" id="calPrev" aria-label="이전 달"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button><b id="calTitle"></b><button class="ib" id="calNext" aria-label="다음 달"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></button></div>
+            <div class="days" id="calDays"></div>
+            <div class="time"><small>시각</small><input id="calH" inputmode="numeric" maxlength="2" aria-label="시">:<input id="calM" inputmode="numeric" maxlength="2" aria-label="분">:<input id="calS" inputmode="numeric" maxlength="2" aria-label="초"></div>
+            <div class="foot"><button id="calNow">지금 (LIVE)</button><button class="primary" id="calGo">이 시각으로 이동</button></div>
+            <div class="legend"><i></i>녹화가 있는 날</div>
+          </div>
+        </span>
+        <span class="seg" title="타임라인 범위 (타임라인 위에서 휠로도 조절)"><button id="zOut" aria-label="타임라인 넓게">−</button><span id="zLabel"></span><button id="zIn" aria-label="타임라인 좁게">+</button></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<dialog id="setDlg">
+  <div id="setHead"><b>설정</b><button id="setClose">닫기</button></div>
+  <div id="setBody">
+    <div class="card">
+      <h3>저장</h3>
+      <label for="sDir">저장 폴더</label><input id="sDir">
+      <div class="row">
+        <div><label for="sDays">최대 저장 기간 (일)</label><input id="sDays" type="number" min="0" step="1"></div>
+        <div><label for="sMax">최대 저장 용량 (GB)</label><input id="sMax" type="number" min="0" step="1"></div>
+      </div>
+      <p class="dim" id="sLimitHint"></p>
+    </div>
+    <div class="card">
+      <div class="row">
+        <h3 style="margin:0">카메라</h3>
+        <button id="scanBtn">자동 검색</button>
+        <button id="addCam">+ 직접 추가</button>
+      </div>
+      <div id="scanBox" class="hide" style="margin-top:10px">
         <div class="dim" id="scanNets"></div>
         <div id="scanList"></div>
       </div>
-      <div id="camCards"></div>
-      <div class="row" style="margin-bottom:12px">
-        <button id="addCam">+ 카메라 추가</button>
-        <button class="primary" id="saveBtn">설정 저장</button>
+      <div id="camList" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <h3>비밀번호 변경</h3>
+      <div class="row">
+        <input id="pwCur" type="password" placeholder="현재 비밀번호" autocomplete="current-password">
+        <input id="pwNew" type="password" placeholder="새 비밀번호 (4자 이상)" autocomplete="new-password">
+        <button id="pwBtn">변경</button>
       </div>
-      <div class="card">
-        <h3>비밀번호 변경</h3>
-        <div class="row">
-          <input id="pwCur" type="password" placeholder="현재 비밀번호" autocomplete="current-password">
-          <input id="pwNew" type="password" placeholder="새 비밀번호 (4자 이상)" autocomplete="new-password">
-          <button id="pwBtn">변경</button>
-        </div>
-        <button id="logoutBtn" style="margin-top:10px">로그아웃</button>
-      </div>
-    </section>
-  </main>
-</div>
+      <button id="logoutBtn" style="margin-top:10px">로그아웃</button>
+    </div>
+  </div>
+  <div id="setFoot"><span class="dim" style="flex:1">"저장"을 눌러야 녹화에 반영됩니다.</span><button class="primary" id="saveBtn">저장</button></div>
+</dialog>
 <div id="toast" class="hide"></div>
 
 <script src="hls.min.js"></script>
@@ -135,8 +254,10 @@ const el = (tag, props = {}, ...kids) => {
 };
 let toastTimer;
 function toast(msg) {
-  $('toast').textContent = msg; $('toast').classList.remove('hide');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.add('hide'), 3500);
+  const t = $('toast');
+  ($('setDlg').open ? $('setDlg') : document.body).append(t); // a modal dialog covers everything outside it
+  t.textContent = msg; t.classList.remove('hide');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hide'), 3500);
 }
 async function api(path, method = 'GET', body) {
   const r = await fetch('/api/v1/' + path, {
@@ -148,12 +269,13 @@ async function api(path, method = 'GET', body) {
   if (!r.ok) throw new Error(j.error || ('오류 ' + r.status));
   return j;
 }
-const gb = b => b < 2**30 ? (b / 2**20).toFixed(0) + ' MB' : (b / 2**30).toFixed(b < 10 * 2**30 ? 2 : 1) + ' GB';
-const hm = t => new Date(t).toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false});
+const G = 2 ** 30;
+const gb = b => b < G ? (b / 2**20).toFixed(0) + ' MB' : (b / G).toFixed(b < 10 * G ? 2 : 1) + ' GB';
+const pad = n => String(n).padStart(2, '0');
 const STATE = {recording: '녹화 중', starting: '연결 중', retrying: '재연결 중', disabled: '꺼짐'};
 
 /* ---------- login ---------- */
-function showLogin() { $('app').classList.add('hide'); $('login').classList.remove('hide'); stopLive(); }
+function showLogin() { $('setDlg').open && $('setDlg').close(); $('app').classList.add('hide'); $('login').classList.remove('hide'); cells.forEach(unload); }
 async function doLogin() {
   $('loginErr').textContent = '';
   try { await api('login', 'POST', {password: $('pw').value}); $('pw').value = ''; start(); }
@@ -163,136 +285,432 @@ $('loginBtn').onclick = doLogin;
 $('pw').onkeydown = e => { if (e.key === 'Enter') doLogin(); };
 $('logoutBtn').onclick = async () => { await api('logout', 'POST', {}).catch(() => {}); showLogin(); };
 
-/* ---------- tabs ---------- */
-let tab = 'live';
-document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
-  tab = b.dataset.tab;
-  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
-  ['live', 'rec', 'set'].forEach(t => $('tab-' + t).classList.toggle('hide', t !== tab));
-  if (tab === 'live') refreshStatus(); else stopLive();
-  if (tab === 'rec') loadRecordings();
-  if (tab === 'set') loadSettings();
-});
-
-/* ---------- live ---------- */
-const players = {}; // camera id -> {card, video, hls, state}
-function stopLive() {
-  for (const id in players) { players[id].hls && players[id].hls.destroy(); players[id].card.remove(); delete players[id]; }
-}
-function attach(p, url) {
-  if (p.hls) { p.hls.destroy(); p.hls = null; }
-  if (window.Hls && Hls.isSupported()) {
-    p.hls = new Hls({liveSyncDurationCount: 2, manifestLoadingMaxRetry: 20, manifestLoadingRetryDelay: 1500});
-    p.hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) { p.state = ''; } });
-    p.hls.loadSource(url); p.hls.attachMedia(p.video);
-  } else { p.video.src = url; }
-  p.video.play().catch(() => {});
-}
+/* ---------- status ---------- */
+let status = null;
+const camById = id => status && status.cameras.find(c => c.id === id);
 async function refreshStatus() {
   let st;
   try { st = await api('status'); } catch { return; }
-  const s = st.storage, card = $('storageCard');
-  const pct = s.maxBytes ? Math.min(100, s.usedBytes / s.maxBytes * 100) : 0;
-  card.replaceChildren(
-    el('div', {className: 'row'},
-      el('span', {textContent: '저장 공간 ' + gb(s.usedBytes) + (s.limitBy === 'days'
-        ? (s.maxDays ? ' / 최대 ' + s.maxDays + '일' + (s.maxBytes ? ' (약 ' + gb(s.maxBytes) + ')' : '') : ' (제한 없음)')
-        : (s.maxBytes ? ' / ' + gb(s.maxBytes) : ' (제한 없음)'))}),
-      el('span', {className: 'dim fit', textContent: '디스크 여유 ' + gb(s.diskFreeBytes)})),
-    el('div', {className: 'bar'}, el('i', {style: 'width:' + pct + '%'})),
-    el('div', {className: 'dim', textContent: s.oldest ? '가장 오래된 녹화: ' + new Date(s.oldest).toLocaleString('ko-KR') : '아직 녹화가 없습니다'}));
-  if (!st.ffmpeg) card.append(el('div', {className: 'err', textContent: 'ffmpeg를 찾을 수 없어 녹화할 수 없습니다.'}));
-  if (!st.cameras.length) card.append(el('div', {className: 'dim', textContent: '설정 탭에서 카메라를 추가하세요.'}));
-  if (tab !== 'live') return;
-  const ids = new Set(st.cameras.map(c => c.id));
-  for (const id in players) if (!ids.has(id)) { players[id].hls && players[id].hls.destroy(); players[id].card.remove(); delete players[id]; }
-  for (const c of st.cameras) {
-    let p = players[c.id];
-    if (!p) {
-      const video = el('video', {muted: true, autoplay: true, playsInline: true, controls: true});
-      const head = el('div', {style: 'margin-bottom:8px'});
-      const err = el('div', {className: 'err'});
-      p = players[c.id] = {video, head, err, state: '', card: el('div', {className: 'card'}, head, video, err)};
-      $('liveGrid').append(p.card);
-    }
-    p.head.className = c.state;
-    p.head.replaceChildren(el('span', {className: 'dot'}), el('b', {textContent: c.name}), el('span', {className: 'dim', textContent: '  ' + (STATE[c.state] || c.state)}));
-    p.err.textContent = c.state === 'retrying' ? (c.error || '') : '';
-    if (c.state === 'recording' && p.state !== 'recording') attach(p, c.liveUrl);
-    p.state = c.state;
-  }
+  const before = status ? status.cameras.map(c => c.id).join() : null;
+  status = st;
+  const s = st.storage, n = st.cameras.length, rec = st.cameras.filter(c => c.state === 'recording').length;
+  const bad = st.cameras.some(c => c.state === 'retrying');
+  const cr = $('chipRec'), cs = $('chipStore');
+  cr.className = 'chip ' + (!st.ffmpeg || bad ? 'bad' : rec ? 'ok' : 'warn');
+  cr.lastElementChild.replaceChildren(...(!st.ffmpeg ? ['ffmpeg 없음'] : n ? [el('b', {textContent: rec + '/' + n}), ' 녹화 중'] : ['카메라 없음']));
+  cr.title = st.ffmpeg ? '등록된 카메라 ' + n + '대 중 ' + rec + '대 녹화 중' : 'ffmpeg를 찾을 수 없어 녹화할 수 없습니다';
+  const limit = s.limitBy === 'days' ? (s.maxDays ? s.maxDays + '일' : '') : (s.maxBytes ? gb(s.maxBytes) : '');
+  cs.firstElementChild.replaceChildren(el('b', {textContent: gb(s.usedBytes)}), limit ? ' / ' + limit : '');
+  cs.querySelector('.meter i').style.width = (s.maxBytes ? Math.min(100, s.usedBytes / s.maxBytes * 100) : 0) + '%';
+  cs.title = '녹화가 쓰는 용량' + (limit ? ' / 보관 한도' : '') + ' · 디스크 여유 ' + gb(s.diskFreeBytes);
+  if (before !== st.cameras.map(c => c.id).join()) buildGrid();
+  updateCamStatus();
 }
 setInterval(() => { if (!$('app').classList.contains('hide')) refreshStatus(); }, 5000);
 
-/* ---------- recordings ---------- */
-function localDate(d = new Date()) { return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
-async function loadRecordings() {
-  const st = await api('status');
-  const sel = $('recCam'), cur = sel.value;
-  sel.replaceChildren(...st.cameras.map(c => el('option', {value: c.id, textContent: c.name})));
-  if (cur && st.cameras.some(c => c.id === cur)) sel.value = cur;
-  if (!$('recDate').value) $('recDate').value = localDate();
-  const list = $('recList'); list.replaceChildren();
-  if (!sel.value) { $('recInfo').textContent = '카메라가 없습니다.'; return; }
-  const from = new Date($('recDate').value + 'T00:00:00'), to = new Date(from.getTime() + 86400000);
-  const r = await api('recordings?camera=' + encodeURIComponent(sel.value) + '&from=' + encodeURIComponent(from.toISOString()) + '&to=' + encodeURIComponent(to.toISOString()));
-  const recs = r.recordings.reverse();
-  $('recInfo').textContent = recs.length ? recs.length + '개 구간 · 누르면 재생됩니다' : '이 날짜에는 녹화가 없습니다.';
-  for (const rec of recs) {
-    const row = el('div', {className: 'item'},
-      el('span', {textContent: hm(rec.start) + ' ~ ' + hm(rec.end) + (rec.active ? '  (녹화 중)' : '')}),
-      el('span', {className: 'dim fit', style: 'flex:0', textContent: (rec.size / 2**20).toFixed(1) + ' MB'}),
-      el('a', {href: rec.url + '?download=1', textContent: '다운로드', onclick: e => e.stopPropagation()}));
-    row.onclick = () => {
-      list.querySelectorAll('.on').forEach(x => x.classList.remove('on')); row.classList.add('on');
-      const v = $('player'); v.classList.remove('hide'); v.src = rec.url; v.play().catch(() => {});
-    };
-    list.append(row);
+/* ---------- layout ---------- */
+// A layout is a grid of cols x rows cells; a "big" cell covers 2x2. It is a
+// per-device preference, so it lives in this browser.
+let layout = {auto: true, cols: 1, rows: 1, fit: 'contain', cells: []};
+try { layout = Object.assign(layout, JSON.parse(localStorage.getItem('ms_layout') || '{}')); } catch {}
+function saveLayout() { try { localStorage.setItem('ms_layout', JSON.stringify(layout)); } catch {} }
+function normalizeLayout() {
+  const ids = status ? status.cameras.map(c => c.id) : [];
+  if (layout.auto) {
+    const n = Math.max(1, ids.length), portrait = innerHeight > innerWidth * 1.1;
+    layout.cols = portrait ? (n <= 3 ? 1 : 2) : Math.ceil(Math.sqrt(n));
+    layout.rows = Math.ceil(n / layout.cols);
+    layout.cells = ids.map(id => ({cam: id}));
   }
+  layout.cols = Math.min(6, Math.max(1, layout.cols | 0)); layout.rows = Math.min(6, Math.max(1, layout.rows | 0));
+  layout.cells = (layout.cells || []).map(c => ({cam: ids.includes(c.cam) ? c.cam : '', big: !!c.big}));
+  const canBig = layout.cols >= 2 && layout.rows >= 2;
+  let slots = layout.cols * layout.rows, out = [];
+  for (const c of layout.cells) { // every cell must fit; a big one takes four slots
+    const need = c.big && canBig && slots >= 4 ? 4 : 1;
+    if (slots < need) break;
+    out.push({cam: c.cam, big: need === 4}); slots -= need;
+  }
+  while (slots-- > 0) out.push({cam: '', big: false});
+  layout.cells = out;
 }
-$('recCam').onchange = $('recDate').onchange = () => loadRecordings().catch(e => toast(e.message));
+let editing = false, solo = -1;
+const cells = []; // runtime state of each grid cell
+function buildGrid() {
+  cells.forEach(unload); cells.length = 0; solo = -1;
+  normalizeLayout();
+  const g = $('grid');
+  g.style.gridTemplateColumns = 'repeat(' + layout.cols + ',minmax(0,1fr))';
+  g.style.gridTemplateRows = 'repeat(' + layout.rows + ',minmax(0,1fr))';
+  g.style.gridAutoFlow = 'dense';
+  g.className = (layout.fit === 'cover' ? 'cover' : '') + (editing ? ' edit' : '');
+  g.replaceChildren(...layout.cells.map((lc, i) => {
+    const video = el('video', {muted: true, autoplay: true, playsInline: true});
+    const tag = el('div', {className: 'tag'}), msg = el('div', {className: 'msg'});
+    const mute = el('button', {textContent: '소리 꺼짐', title: '이 화면의 소리 켜기/끄기'});
+    mute.onclick = e => { e.stopPropagation(); video.muted = !video.muted; mute.textContent = video.muted ? '소리 꺼짐' : '소리 켜짐'; };
+    const dl = el('a', {textContent: '내려받기', className: 'hide', title: '지금 보고 있는 구간의 녹화 파일'});
+    dl.onclick = e => e.stopPropagation();
+    const unzoom = el('button', {textContent: '확대 해제', className: 'hide'});
+    const sel = el('select', {}, el('option', {value: '', textContent: '(비움)'}), ...(status ? status.cameras : []).map(c => el('option', {value: c.id, textContent: c.name})));
+    sel.value = lc.cam;
+    sel.onchange = () => { layout.auto = false; layout.cells[i].cam = sel.value; saveLayout(); buildGrid(); };
+    const big = el('button', {textContent: lc.big ? '작게' : '크게'});
+    big.onclick = () => { layout.auto = false; layout.cells[i].big = !lc.big; saveLayout(); buildGrid(); };
+    const box = el('div', {className: 'cell' + (lc.big ? ' big' : '')}, video, msg, tag,
+      el('div', {className: 'tools'}, unzoom, dl, mute), el('div', {className: 'edit'}, sel, big));
+    box.ondblclick = e => { if (editing || e.target.closest('.tools')) return; solo = solo === i ? -1 : i; g.classList.toggle('solo', solo >= 0); cells.forEach((c, j) => c.box.classList.toggle('solo', j === solo)); };
+    const cell = {cam: lc.cam, box, video, tag, msg, dl, hls: null, key: '', rec: null, loadedEnd: 0, retryAt: 0};
+    // Wheel zooms the picture around the pointer; dragging moves it while zoomed.
+    let z = 1, px = 0, py = 0, drag = null;
+    const place = () => {
+      const w = box.clientWidth, h = box.clientHeight;
+      px = Math.min(0, Math.max(w - w * z, px)); py = Math.min(0, Math.max(h - h * z, py));
+      video.style.transform = z > 1 ? 'translate(' + px + 'px,' + py + 'px) scale(' + z + ')' : '';
+      box.classList.toggle('zoomed', z > 1); unzoom.classList.toggle('hide', z <= 1);
+    };
+    box.addEventListener('wheel', e => {
+      if (editing || !cell.cam) return;
+      e.preventDefault();
+      const r = box.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      let nz = Math.min(8, Math.max(1, z * Math.exp(-e.deltaY * 0.0015)));
+      if (nz < 1.02) nz = 1;
+      px = x - (x - px) * nz / z; py = y - (y - py) * nz / z; z = nz; place();
+    }, {passive: false});
+    box.onpointerdown = e => {
+      if (z <= 1 || e.button !== 0 || e.target.closest('.tools,.edit')) return;
+      drag = {x: e.clientX - px, y: e.clientY - py}; box.setPointerCapture(e.pointerId);
+    };
+    box.onpointermove = e => { if (drag) { px = e.clientX - drag.x; py = e.clientY - drag.y; place(); } };
+    box.onpointerup = box.onpointercancel = () => { drag = null; };
+    unzoom.onclick = e => { e.stopPropagation(); z = 1; px = py = 0; place(); };
+    cells.push(cell);
+    return box;
+  }));
+  $('colsN').textContent = layout.cols; $('rowsN').textContent = layout.rows;
+  $('fitBtn').textContent = layout.fit === 'cover' ? '영상: 칸에 꽉 채움' : '영상: 전체가 보이게';
+  tlSig = '';
+}
+function setEditing(on) {
+  editing = on; $('layoutBar').classList.toggle('hide', !on); $('layoutBtn').classList.toggle('on', on); buildGrid();
+}
+$('layoutBtn').onclick = () => setEditing(!editing);
+$('layoutDone').onclick = () => setEditing(false);
+const resize = (key, d) => () => { normalizeLayout(); layout.auto = false; layout[key] += d; saveLayout(); buildGrid(); };
+$('colsDn').onclick = resize('cols', -1); $('colsUp').onclick = resize('cols', 1);
+$('rowsDn').onclick = resize('rows', -1); $('rowsUp').onclick = resize('rows', 1);
+$('fitBtn').onclick = () => { layout.fit = layout.fit === 'cover' ? 'contain' : 'cover'; saveLayout(); buildGrid(); };
+$('autoBtn').onclick = () => { layout.auto = true; saveLayout(); buildGrid(); };
+addEventListener('resize', () => { if (layout.auto) { const c = layout.cols; normalizeLayout(); if (c !== layout.cols) buildGrid(); } });
 
-/* ---------- settings ---------- */
-let cams = [], devices = null;
+/* ---------- players ---------- */
+function unload(c) {
+  if (c.hls) { c.hls.destroy(); c.hls = null; }
+  if (c.video.getAttribute('src')) { c.video.removeAttribute('src'); c.video.load(); }
+  c.key = '';
+}
+// start == null plays a live stream, otherwise a recording from that second.
+function load(c, url, start) {
+  unload(c);
+  if (window.Hls && Hls.isSupported()) {
+    c.hls = new Hls(start == null
+      ? {liveSyncDurationCount: 2, manifestLoadingMaxRetry: 20, manifestLoadingRetryDelay: 1500}
+      : {startPosition: Math.max(0, start), maxBufferLength: 20, maxMaxBufferLength: 40});
+    c.hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) { unload(c); c.retryAt = Date.now() + 3000; } });
+    c.hls.loadSource(url); c.hls.attachMedia(c.video);
+  } else {
+    c.video.src = url;
+    if (start != null) c.video.addEventListener('loadedmetadata', () => { c.video.currentTime = Math.max(0, start); }, {once: true});
+  }
+  c.video.play().catch(() => {});
+}
+
+/* ---------- recordings ---------- */
+const dayStart = t => { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+const DAY = 86400000;
+const recCache = {}; let cacheVer = 0;
+function recEntry(cam, t) {
+  const ds = dayStart(t), k = cam + '|' + ds;
+  const e = recCache[k] || (recCache[k] = {at: 0, list: [], busy: false});
+  const ttl = ds === dayStart(Date.now()) ? 15000 : 300000;
+  if (!e.busy && Date.now() - e.at > ttl) {
+    e.busy = true;
+    api('recordings?camera=' + encodeURIComponent(cam) + '&from=' + encodeURIComponent(new Date(ds).toISOString()) + '&to=' + encodeURIComponent(new Date(ds + DAY).toISOString()))
+      .then(r => { e.list = r.recordings.map(x => ({start: Date.parse(x.start), end: Date.parse(x.end), file: x.file, url: x.url})); e.at = Date.now(); cacheVer++; })
+      .catch(() => { e.at = Date.now() - ttl + 5000; })
+      .finally(() => { e.busy = false; });
+  }
+  return e;
+}
+const findRec = (list, t) => list.find(r => t >= r.start && t < r.end) || list.find(r => r.start > t && r.start - t < 3000);
+
+/* ---------- clock: live or a moment in the past ---------- */
+let mode = 'live', T = Date.now(), playing = true, lastTick = Date.now();
+const LIVE_EDGE = 15000; // closer to now than this is simply live
+function goLive() { mode = 'live'; playing = true; T = Date.now(); tlFree = false; }
+function seek(t) {
+  if (t > Date.now() - LIVE_EDGE) return goLive();
+  mode = 'play'; T = t; tlFree = false;
+}
+function tick() {
+  const now = Date.now(), dt = now - lastTick; lastTick = now;
+  if ($('app').classList.contains('hide')) return;
+  const rate = mode === 'live' ? 1 : parseFloat($('rate').value) || 1;
+  if (mode === 'live') T = now;
+  else {
+    // The clock follows the first camera that is actually playing, so a slow
+    // network pauses time instead of making the picture jump.
+    let ref = null, loading = false, any = false, loaded = true, next = Infinity;
+    for (const c of cells) {
+      if (!c.cam) continue;
+      const e = recEntry(c.cam, T), r = findRec(e.list, T);
+      if (!e.at) loaded = false;
+      if (!r) { const n = e.list.find(x => x.start > T); if (n) next = Math.min(next, n.start); continue; }
+      any = true;
+      const v = c.video;
+      if (c.key !== r.file || v.readyState < 3 || v.seeking) { loading = true; continue; }
+      const vt = r.start + v.currentTime * 1000;
+      if (!ref && Math.abs(vt - T) < 3000 + 1000 * rate) ref = {c, r, vt};
+    }
+    if (playing) {
+      if (ref) {
+        const v = ref.c.video;
+        T = v.ended || (isFinite(v.duration) && v.duration - v.currentTime < 0.3) ? Math.max(T, ref.r.end) + 1 : ref.vt;
+      } else if (!any && loaded) { // nothing recorded here: jump to the next footage
+        if (next < Infinity) T = next;
+        else if (dayStart(T) + DAY > now) goLive();
+        else T = dayStart(T) + DAY;
+      } else if (!loading && !any) T += dt * rate;
+    }
+    if (mode === 'play' && T > now - LIVE_EDGE) goLive();
+  }
+  for (const c of cells) syncCell(c, now, rate);
+  drawClock(now);
+}
+function syncCell(c, now, rate) {
+  const cam = camById(c.cam), v = c.video;
+  c.tag.classList.toggle('hide', !cam);
+  if (!cam) { if (c.key) unload(c); c.msg.textContent = editing ? '' : '비어 있는 칸'; c.dl.classList.add('hide'); return; }
+  c.tag.className = 'tag ' + cam.state;
+  if (!c.tag.firstChild || c.tag.dataset.n !== cam.name) { c.tag.dataset.n = cam.name; c.tag.replaceChildren(el('span', {className: 'dot'}), cam.name); }
+  if (mode === 'live') {
+    c.dl.classList.add('hide'); c.rec = null;
+    if (cam.state !== 'recording') {
+      if (c.key) unload(c);
+      c.msg.textContent = cam.state === 'retrying' ? '재연결 중 — ' + (cam.error || '') : cam.state === 'starting' ? '카메라에 연결 중…' : '녹화가 꺼져 있습니다';
+      return;
+    }
+    if (c.key !== 'live' && now > c.retryAt) { load(c, cam.liveUrl); c.key = 'live'; }
+    c.msg.textContent = v.readyState >= 2 ? '' : '실시간 영상 불러오는 중…';
+    if (v.paused && v.readyState >= 2) v.play().catch(() => {});
+    v.playbackRate = 1;
+    return;
+  }
+  const e = recEntry(c.cam, T), r = findRec(e.list, T);
+  c.rec = r || null;
+  if (!r) {
+    if (c.key) unload(c);
+    c.msg.textContent = e.at ? '이 시각에는 녹화가 없습니다' : '녹화 목록 불러오는 중…';
+    c.dl.classList.add('hide'); return;
+  }
+  c.dl.classList.remove('hide'); c.dl.href = r.url + '?download=1';
+  const pos = (T - r.start) / 1000;
+  // the file being written keeps growing: reload its playlist when we reach the part we know
+  const grown = T > c.loadedEnd - 2000 && r.end > c.loadedEnd + 4000;
+  if ((c.key !== r.file || grown) && now > c.retryAt) {
+    load(c, r.url.replace(/\.mp4$/, '.m3u8'), pos); c.key = r.file; c.loadedEnd = r.end;
+  } else if (c.key === r.file && v.readyState >= 1 && !v.seeking && Math.abs(v.currentTime - pos) > 1.5 + rate) {
+    v.currentTime = Math.max(0, pos);
+  }
+  c.msg.textContent = v.readyState >= 2 ? '' : '녹화 영상 불러오는 중…';
+  v.playbackRate = rate;
+  if (playing && v.paused && !v.ended) v.play().catch(() => {});
+  if (!playing && !v.paused) v.pause();
+}
+setInterval(tick, 250);
+
+/* ---------- timeline ---------- */
+// The timeline shows tlSpan milliseconds starting at tlStart. The wheel zooms
+// it around the pointer; it follows the clock unless the user moved it away.
+const PLAY_ICON = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M8 5.2v13.6a.6.6 0 0 0 .92.5l10.6-6.8a.6.6 0 0 0 0-1L8.92 4.7A.6.6 0 0 0 8 5.2z" fill="currentColor"/></svg>', PAUSE_ICON = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="6.5" y="5" width="4" height="14" rx="1.2" fill="currentColor"/><rect x="13.5" y="5" width="4" height="14" rx="1.2" fill="currentColor"/></svg>';
+const HOUR = 3600000, MIN_SPAN = 5 * 60000, MAX_SPAN = 7 * DAY;
+let tlSig = '', tlSpan = DAY, tlStart = dayStart(Date.now()), tlFree = false, dragging = false;
+const STEPS = [60000, 2 * 60000, 5 * 60000, 10 * 60000, 15 * 60000, 30 * 60000, HOUR, 2 * HOUR, 3 * HOUR, 6 * HOUR, 12 * HOUR, DAY];
+const hhmm = d => pad(d.getHours()) + ':' + pad(d.getMinutes());
+const spanLabel = ms => ms < HOUR ? Math.round(ms / 60000) + '분' : ms <= DAY ? +(ms / HOUR).toFixed(1) + '시간' : +(ms / DAY).toFixed(1) + '일';
+function setWindow(start, spanMs) {
+  tlSpan = Math.min(MAX_SPAN, Math.max(MIN_SPAN, spanMs));
+  tlStart = Math.min(start, dayStart(Date.now()) + DAY - Math.min(tlSpan, DAY)); // at most the rest of today lies in the future
+  tlFree = T < tlStart || T > tlStart + tlSpan;
+}
+function zoomTimeline(factor, frac) { // frac: the point of the window that stays put
+  const at = tlStart + frac * tlSpan, s = Math.min(MAX_SPAN, Math.max(MIN_SPAN, tlSpan * factor));
+  setWindow(at - frac * s, s);
+}
+function drawClock(now) {
+  const d = new Date(T), ymd = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()), hms = hhmm(d) + ':' + pad(d.getSeconds());
+  $('cDate').textContent = ymd + ' ' + '일월화수목금토'[d.getDay()] + '요일';
+  $('cTime').textContent = hms;
+  $('liveBtn').classList.toggle('on', mode === 'live');
+  const bp = $('bPlay');
+  if (bp.dataset.playing !== String(playing)) { bp.dataset.playing = playing; bp.innerHTML = playing ? PAUSE_ICON : PLAY_ICON; }
+  $('rate').disabled = mode === 'live';
+  $('zLabel').textContent = spanLabel(tlSpan);
+  if (!tlFree && !dragging && (T < tlStart || T > tlStart + tlSpan)) // keep the clock in view
+    tlStart = tlSpan === DAY ? dayStart(T) : T - tlSpan * (mode === 'live' ? 0.9 : 0.15);
+  const ws = tlStart, s = tlSpan, tl = $('tl'), width = tl.clientWidth || 1;
+  const sig = [ws, s, cacheVer, cells.map(c => c.cam).join(), Math.floor(now / 10000), width].join('|');
+  if (sig !== tlSig) {
+    tlSig = sig;
+    const kids = [];
+    for (const cam of new Set(cells.map(c => c.cam).filter(Boolean)))
+      for (let day = dayStart(ws); day < ws + s; day += DAY)
+        for (const r of recEntry(cam, day).list) {
+          const a = Math.max(r.start, ws), b = Math.min(r.end, ws + s);
+          if (b > a) kids.push(el('div', {className: 'rng', style: 'left:' + (a - ws) / s * 100 + '%;width:' + (b - a) / s * 100 + '%'}));
+        }
+    if (now < ws + s) kids.push(el('div', {className: 'future', style: 'left:' + Math.max(0, now - ws) / s * 100 + '%'}));
+    const step = STEPS.find(x => x / s * width >= 64) || DAY, d0 = dayStart(ws);
+    for (let t = d0 + Math.ceil((ws - d0) / step) * step; t < ws + s; t += step) {
+      const d2 = new Date(t), midnight = d2.getHours() === 0 && d2.getMinutes() === 0;
+      kids.push(el('div', {className: 'tick' + (midnight ? ' day' : ''), style: 'left:' + (t - ws) / s * 100 + '%',
+        textContent: midnight ? (d2.getMonth() + 1) + '/' + d2.getDate() : hhmm(d2)}));
+    }
+    kids.push(el('div', {className: 'cur', id: 'tlCur'}));
+    tl.replaceChildren(...kids);
+  }
+  const cur = $('tlCur');
+  if (cur) { cur.style.left = 'calc(' + (T - ws) / s * 100 + '% - 1px)'; cur.classList.toggle('hide', T < ws || T > ws + s); }
+}
+function tlSeek(e) {
+  const r = $('tl').getBoundingClientRect();
+  seek(tlStart + Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * tlSpan);
+}
+$('tl').onpointerdown = e => { dragging = true; $('tl').setPointerCapture(e.pointerId); tlSeek(e); };
+$('tl').onpointermove = e => { if (dragging) tlSeek(e); };
+$('tl').onpointerup = $('tl').onpointercancel = () => { dragging = false; };
+$('tl').addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = $('tl').getBoundingClientRect();
+  if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) setWindow(tlStart + (e.deltaX || e.deltaY) / r.width * tlSpan, tlSpan); // sideways: move
+  else zoomTimeline(Math.exp(e.deltaY * 0.0015), (e.clientX - r.left) / r.width);
+}, {passive: false});
+const zoomAtClock = f => () => { const inView = T >= tlStart && T <= tlStart + tlSpan; zoomTimeline(f, inView ? (T - tlStart) / tlSpan : 0.5); };
+$('zIn').onclick = zoomAtClock(0.5); $('zOut').onclick = zoomAtClock(2);
+const jump = ms => () => seek(T + ms);
+$('bM60').onclick = jump(-60000); $('bM10').onclick = jump(-10000); $('bP10').onclick = jump(10000); $('bP60').onclick = jump(60000);
+$('bPlay').onclick = () => {
+  if (mode === 'live') { seek(Date.now() - LIVE_EDGE - 5000); playing = false; } else playing = !playing;
+};
+$('liveBtn').onclick = goLive;
+// Date-time popover: pick a day and a time, then jump there.
+const cal = {y: 0, m: 0, sel: 0};
+const calOpen = () => !$('cal').classList.contains('hide');
+function closeCal() { $('cal').classList.add('hide'); $('whenBtn').classList.remove('on'); }
+function openCal() {
+  const d = new Date(T);
+  cal.y = d.getFullYear(); cal.m = d.getMonth(); cal.sel = dayStart(T);
+  $('calH').value = pad(d.getHours()); $('calM').value = pad(d.getMinutes()); $('calS').value = pad(d.getSeconds());
+  drawCal(); $('cal').classList.remove('hide'); $('whenBtn').classList.add('on');
+}
+function drawCal() {
+  $('calTitle').textContent = cal.y + '년 ' + (cal.m + 1) + '월';
+  const today = dayStart(Date.now()), now = new Date();
+  const oldest = status && status.storage.oldest ? dayStart(Date.parse(status.storage.oldest)) : Infinity;
+  const kids = [...'일월화수목금토'].map(w => el('div', {className: 'wd', textContent: w}));
+  for (let i = new Date(cal.y, cal.m, 1).getDay(); i > 0; i--) kids.push(el('span'));
+  for (let day = 1, n = new Date(cal.y, cal.m + 1, 0).getDate(); day <= n; day++) {
+    const t = new Date(cal.y, cal.m, day).getTime();
+    const b = el('button', {textContent: day, disabled: t > today,
+      className: 'd' + (t === today ? ' today' : '') + (t === cal.sel ? ' sel' : '') + (t >= oldest && t <= today ? ' has' : '')});
+    b.onclick = () => { cal.sel = t; drawCal(); };
+    b.ondblclick = goCal;
+    kids.push(b);
+  }
+  $('calDays').replaceChildren(...kids);
+  $('calNext').disabled = cal.y > now.getFullYear() || (cal.y === now.getFullYear() && cal.m >= now.getMonth());
+}
+function goCal() {
+  const num = (id, max) => Math.min(max, Math.max(0, parseInt($(id).value) || 0)), d = new Date(cal.sel);
+  seek(new Date(d.getFullYear(), d.getMonth(), d.getDate(), num('calH', 23), num('calM', 59), num('calS', 59)).getTime());
+  closeCal();
+}
+const calMonth = step => () => { const d = new Date(cal.y, cal.m + step, 1); cal.y = d.getFullYear(); cal.m = d.getMonth(); drawCal(); };
+$('whenBtn').onclick = () => calOpen() ? closeCal() : openCal();
+$('calPrev').onclick = calMonth(-1); $('calNext').onclick = calMonth(1);
+$('calGo').onclick = goCal;
+$('calNow').onclick = () => { goLive(); closeCal(); };
+for (const [id, max] of [['calH', 23], ['calM', 59], ['calS', 59]]) {
+  const inp = $(id);
+  inp.onfocus = () => inp.select();
+  inp.onblur = () => { inp.value = pad(Math.min(max, Math.max(0, parseInt(inp.value) || 0))); };
+  inp.onkeydown = e => {
+    if (e.key === 'Enter') goCal();
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      inp.value = pad(((parseInt(inp.value) || 0) + (e.key === 'ArrowUp' ? 1 : max) ) % (max + 1));
+    }
+  };
+}
+addEventListener('pointerdown', e => { if (calOpen() && !e.target.closest('.pick')) closeCal(); });
+addEventListener('keydown', e => { if (e.key === 'Escape' && calOpen()) closeCal(); });
+$('tl').addEventListener('pointermove', e => {
+  const r = $('tl').getBoundingClientRect(), f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), d = new Date(tlStart + f * tlSpan), tip = $('tlTip');
+  tip.textContent = (tlSpan > DAY ? (d.getMonth() + 1) + '/' + d.getDate() + ' ' : '') + hhmm(d) + ':' + pad(d.getSeconds());
+  tip.style.left = Math.min(r.width - 40, Math.max(40, f * r.width)) + 'px'; tip.classList.remove('hide');
+});
+$('tl').addEventListener('pointerleave', () => $('tlTip').classList.add('hide'));
+addEventListener('keydown', e => {
+  if ($('setDlg').open || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) || $('app').classList.contains('hide')) return;
+  if (e.key === ' ') { e.preventDefault(); $('bPlay').click(); }
+  else if (e.key === 'ArrowLeft') seek(T - 10000);
+  else if (e.key === 'ArrowRight') seek(T + 10000);
+});
+
+/* ---------- settings window ---------- */
+let cams = [], devices = null, limitBy = 'days', usage = null;
+const openCams = new Set(), newCams = new Set(); // camera objects being edited / not saved yet
 const TYPES = {usb: 'USB 카메라 (이 컴퓨터에 연결)', rtsp: 'IP 카메라 / 폰 앱 (RTSP 주소)', http: '폰 앱 / 웹캠 (HTTP·MJPEG 주소)'};
-// Retention: the field edited last is the limit; the other one is computed
-// from what the current cameras actually write per day.
-let limitBy = 'days', usage = null;
-const round1 = v => Math.round(v * 10) / 10;
-function syncLimit() {
-  const perDay = usage ? usage.bytesPerDay : 0, G = 2 ** 30;
-  const days = parseFloat($('sDays').value) || 0, size = parseFloat($('sMax').value) || 0;
+const CAMTYPE = {usb: 'USB', rtsp: 'IP 카메라', http: 'HTTP'};
+const round1 = v => Math.floor(v * 10) / 10;
+// Recordings can never take more than what they use now plus the free space,
+// minus the space the disk must always keep.
+const room = () => usage ? Math.max(0, usage.usedBytes + usage.diskFreeBytes - usage.reserveBytes) : Infinity;
+function syncLimit(clamp) {
+  const perDay = usage ? usage.bytesPerDay : 0, max = room();
+  let days = parseFloat($('sDays').value) || 0, size = parseFloat($('sMax').value) || 0, capped = false;
+  if (clamp && limitBy === 'size' && size * G > max) { size = round1(max / G); $('sMax').value = size; capped = true; }
+  if (clamp && limitBy === 'days' && perDay && days * perDay > max) { days = round1(max / perDay); $('sDays').value = days; capped = true; }
   const other = $(limitBy === 'days' ? 'sMax' : 'sDays');
   other.placeholder = perDay ? '' : '측정 후 계산';
   if (!perDay) other.value = '';
   else if (limitBy === 'days') other.value = round1(days * perDay / G);
   else other.value = round1(size * G / perDay);
-  let t;
-  if (!perDay) t = '녹화가 1분 이상 쌓이면 카메라별 사용량을 측정해 나머지 값을 계산합니다.';
-  else {
-    const wait = usage.camerasEnabled - usage.camerasMeasured;
-    t = '현재 카메라 ' + usage.camerasMeasured + '대 기준 하루 약 ' + gb(perDay) + ' 사용' + (wait > 0 ? ' (' + wait + '대는 측정 중)' : '') + '. ';
-    const room = usage.usedBytes + usage.diskFreeBytes - (parseFloat($('sFree').value) || 0) * G;
-    const need = limitBy === 'days' ? days * perDay : size * G;
-    if (need > room) t += '⚠ 디스크 공간이 부족해 약 ' + round1(Math.max(0, room) / perDay) + '일치까지만 저장됩니다. ';
-  }
-  t = t.trim() + (limitBy === 'days' ? ' 기준: 기간' : ' 기준: 용량');
-  $('sLimitHint').textContent = t;
+  let t = perDay
+    ? '현재 카메라 ' + usage.camerasMeasured + '대 기준 하루 약 ' + gb(perDay) + ' 사용' + (usage.camerasEnabled > usage.camerasMeasured ? ' (' + (usage.camerasEnabled - usage.camerasMeasured) + '대는 측정 중)' : '') + '. '
+    : '녹화가 1분 이상 쌓이면 카메라별 사용량을 측정해 나머지 값을 계산합니다. ';
+  if (usage) t += '이 디스크에 담을 수 있는 최대: ' + gb(max) + (perDay ? ' (약 ' + round1(max / perDay) + '일)' : '') + ' — 항상 비워 두는 ' + gb(usage.reserveBytes) + ' 제외. ';
+  if (capped) t += '입력한 값이 최대를 넘어 최대값으로 맞췄습니다. ';
+  $('sLimitHint').textContent = t + (limitBy === 'days' ? '기준: 기간' : '기준: 용량');
 }
-$('sDays').oninput = () => { limitBy = 'days'; syncLimit(); };
-$('sMax').oninput = () => { limitBy = 'size'; syncLimit(); };
-$('sFree').oninput = syncLimit;
-async function loadSettings() {
+$('sDays').oninput = () => { limitBy = 'days'; syncLimit(false); };
+$('sMax').oninput = () => { limitBy = 'size'; syncLimit(false); };
+$('sDays').onchange = $('sMax').onchange = () => syncLimit(true);
+async function openSettings() {
   try {
     const c = await api('config');
     usage = (await api('status')).storage;
     limitBy = c.limitBy === 'size' ? 'size' : 'days';
-    $('sDir').value = c.storageDir; $('sDays').value = c.maxDays; $('sMax').value = c.maxStorageGB; $('sFree').value = c.minFreeGB; $('sSeg').value = c.segmentMinutes;
-    syncLimit();
-    cams = c.cameras || []; renderCams();
+    $('sDir').value = c.storageDir; $('sDays').value = c.maxDays; $('sMax').value = c.maxStorageGB;
+    syncLimit(true);
+    cams = c.cameras || []; openCams.clear(); newCams.clear(); scanResult = null; $('scanBox').classList.add('hide');
+    renderCams();
+    $('setDlg').showModal();
     if (!devices) api('devices').then(d => { devices = d; renderCams(); }).catch(() => {});
   } catch (e) { toast(e.message); }
 }
+$('setBtn').onclick = openSettings;
+$('setClose').onclick = () => $('setDlg').close();
 function field(label, input) { return el('div', {}, el('label', {textContent: label}), input); }
 function bind(input, cam, key, kind) {
   if (kind === 'check') { input.checked = !!cam[key]; input.onchange = () => cam[key] = input.checked; }
@@ -304,50 +722,93 @@ function deviceSelect(cam, key, list, emptyLabel) {
   const s = el('select', {}, el('option', {value: '', textContent: emptyLabel}), ...names.map(n => el('option', {value: n, textContent: n})));
   return bind(s, cam, key);
 }
+function sourceOf(cam) {
+  if (cam.type === 'usb') return cam.videoDevice || '';
+  try { return new URL(cam.url).host; } catch { return ''; }
+}
+// One line per camera: what it is and how it is doing; opening it shows its settings.
+const camRows = new Map(); // camera id -> the parts that show live status
 function renderCams() {
-  $('camCards').replaceChildren(...cams.map((cam, i) => {
+  camRows.clear();
+  const list = $('camList');
+  list.replaceChildren(...cams.map((cam, i) => {
+    const open = openCams.has(cam), fresh = newCams.has(cam);
+    const dotWrap = el('span', {}, el('span', {className: 'dot'}));
+    const title = el('b', {textContent: cam.name || '(이름 없음)'});
+    const sub = el('div', {className: 'dim', textContent: (CAMTYPE[cam.type] || cam.type) + ' · ' + (sourceOf(cam) || '주소 없음')});
+    const state = el('div'), use = el('div'), err = el('div', {className: 'err'});
+    const sum = el('div', {className: 'sum'}, dotWrap,
+      el('div', {className: 'name'}, title, fresh ? el('span', {className: 'badge', textContent: '저장 전'}) : '', sub, err),
+      el('div', {className: 'dim right'}, state, use),
+      el('button', {textContent: open ? '접기' : '편집'}));
+    sum.onclick = () => { open ? openCams.delete(cam) : openCams.add(cam); renderCams(); };
+    if (cam.id && !fresh) camRows.set(cam.id, {dotWrap, state, use, err});
+    const box = el('div', {className: 'cam'}, sum);
+    if (!open) return box;
     const type = bind(el('select', {}, ...Object.entries(TYPES).map(([v, t]) => el('option', {value: v, textContent: t}))), cam, 'type');
     type.onchange = () => { cam.type = type.value; renderCams(); };
-    const card = el('div', {className: 'card'},
-      el('div', {className: 'row'},
-        field('이름', bind(el('input'), cam, 'name')), field('종류', type)));
+    const name = bind(el('input'), cam, 'name');
+    name.addEventListener('input', () => { title.textContent = cam.name || '(이름 없음)'; });
+    const form = el('div', {className: 'form'}, el('div', {className: 'row'}, field('이름', name), field('종류', type)));
     if (cam.type === 'usb') {
-      card.append(el('div', {className: 'row'},
+      form.append(el('div', {className: 'row'},
         field('카메라 장치', deviceSelect(cam, 'videoDevice', devices && devices.video, '선택하세요')),
         field('마이크 장치', deviceSelect(cam, 'audioDevice', devices && devices.audio, '소리 없음'))));
-      card.append(el('div', {className: 'row'},
+      form.append(el('div', {className: 'row'},
         field('가로 (0 = 자동)', bind(el('input', {type: 'number', min: 0}), cam, 'width', 'num')),
         field('세로 (0 = 자동)', bind(el('input', {type: 'number', min: 0}), cam, 'height', 'num')),
         field('초당 프레임 (0 = 자동)', bind(el('input', {type: 'number', min: 0}), cam, 'fps', 'num'))));
     } else if (cam.type === 'rtsp') {
-      card.append(field('RTSP 주소', bind(el('input', {placeholder: 'rtsp://아이디:비밀번호@192.168.0.10:554/stream1', autocapitalize: 'off', spellcheck: false}), cam, 'url')));
+      form.append(field('RTSP 주소', bind(el('input', {placeholder: 'rtsp://아이디:비밀번호@192.168.0.10:554/stream1', autocapitalize: 'off', spellcheck: false}), cam, 'url')));
     } else {
-      card.append(field('영상 주소', bind(el('input', {placeholder: 'http://192.168.0.20:8080/video', autocapitalize: 'off', spellcheck: false}), cam, 'url')));
-      card.append(field('소리 주소 (선택)', bind(el('input', {placeholder: 'http://192.168.0.20:8080/audio.wav', autocapitalize: 'off', spellcheck: false}), cam, 'audioUrl')));
+      form.append(field('영상 주소', bind(el('input', {placeholder: 'http://192.168.0.20:8080/video', autocapitalize: 'off', spellcheck: false}), cam, 'url')));
+      form.append(field('소리 주소 (선택)', bind(el('input', {placeholder: 'http://192.168.0.20:8080/audio.wav', autocapitalize: 'off', spellcheck: false}), cam, 'audioUrl')));
     }
     const checks = el('div', {className: 'row', style: 'margin-top:10px'},
       el('label', {className: 'fit'}, bind(el('input', {type: 'checkbox'}), cam, 'enabled', 'check'), ' 녹화 켜기'),
       el('label', {className: 'fit'}, bind(el('input', {type: 'checkbox'}), cam, 'audio', 'check'), ' 소리 포함'));
     if (cam.type === 'rtsp') checks.append(el('label', {className: 'fit'}, bind(el('input', {type: 'checkbox'}), cam, 'transcode', 'check'), ' H.264로 변환 (폰에서 재생이 안 될 때)'));
-    checks.append(el('span'), el('button', {className: 'danger', textContent: '삭제', onclick: () => {
-      if (confirm('"' + (cam.name || '카메라') + '" 설정을 삭제할까요? 이미 저장된 녹화는 용량이 찰 때까지 남습니다.')) { cams.splice(i, 1); renderCams(); }
-    }}));
-    card.append(checks);
-    return card;
+    // Deleting takes two presses instead of a browser confirm box, which some
+    // browsers silently suppress.
+    const del = el('button', {className: 'danger', textContent: '삭제'});
+    let armed = 0;
+    del.onclick = () => {
+      if (!fresh && Date.now() > armed) { armed = Date.now() + 4000; del.textContent = '한 번 더 누르면 삭제'; setTimeout(() => { del.textContent = '삭제'; }, 4000); return; }
+      cams.splice(i, 1); openCams.delete(cam); newCams.delete(cam); renderCams(); renderScan();
+      toast(fresh ? '추가하던 카메라를 지웠습니다.' : '목록에서 지웠습니다. "저장"을 누르면 녹화가 멈춥니다. 저장된 영상은 남습니다.');
+    };
+    checks.append(el('span'), del);
+    form.append(checks);
+    box.append(form);
+    return box;
   }));
+  if (!cams.length) list.append(el('p', {className: 'dim', textContent: '등록된 카메라가 없습니다. "자동 검색"이나 "+ 직접 추가"로 등록하세요.'}));
+  updateCamStatus();
 }
+function updateCamStatus() {
+  if (!status) return;
+  const per = status.storage.perCamera || {};
+  for (const [id, r] of camRows) {
+    const c = camById(id);
+    if (!c) continue;
+    r.dotWrap.className = c.state;
+    r.state.textContent = STATE[c.state] || c.state;
+    r.use.textContent = c.enabled ? (per[id] ? '하루 약 ' + gb(per[id]) : '사용량 측정 중') : '';
+    r.err.textContent = c.state === 'retrying' ? (c.error || '') : '';
+  }
+}
+function addCam(cam) {
+  cams.push(cam); openCams.add(cam); newCams.add(cam); renderCams(); renderScan();
+  $('camList').lastElementChild.scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+$('addCam').onclick = () => addCam({name: '카메라 ' + (cams.length + 1), type: 'rtsp', enabled: true, audio: true});
+
 /* ---------- discovery ---------- */
 const KIND = {usb: 'USB', hikvision: 'Hikvision', dahua: 'Dahua', onvif: 'ONVIF', ipwebcam: '폰 앱', droidcam: '폰 앱', rtsp: 'RTSP'};
 const STATUS_CLS = {ok: 'recording', routed: 'recording', noport: 'starting', unreachable: 'retrying'};
 function isRegistered(d) {
   return cams.some(c => d.kind === 'usb' ? c.type === 'usb' && c.videoDevice === d.draft.videoDevice
     : new RegExp('[/@]' + d.ip.replaceAll('.', '\\.') + '[:/]').test((c.url || '') + '/'));
-}
-function addDraft(d, url) {
-  cams.push({...d.draft, url: url ?? d.draft.url});
-  renderCams(); renderScan();
-  $('camCards').lastElementChild.scrollIntoView({behavior: 'smooth', block: 'center'});
-  toast('초안을 추가했습니다. 내용을 확인한 뒤 "설정 저장"을 누르세요.');
 }
 function withLogin(raw, user, pass) {
   if (!user) return raw;
@@ -356,34 +817,39 @@ function withLogin(raw, user, pass) {
 let scanResult = null;
 function renderScan() {
   if (!scanResult) return;
+  $('scanBox').classList.remove('hide');
   $('scanNets').textContent = scanResult.networks.length
     ? '이 컴퓨터의 네트워크 대역: ' + scanResult.networks.map(n => n.cidr + ' (' + n.name + ', IP ' + n.ip + ')').join(' · ')
     : '이 컴퓨터가 네트워크에 연결되어 있지 않습니다.';
-  const list = $('scanList');
-  if (!scanResult.devices.length) { list.replaceChildren(el('p', {className: 'dim', textContent: '찾은 카메라가 없습니다. 카메라 전원과 랜선, 폰 앱의 서버 시작 여부를 확인하세요.'})); return; }
-  list.replaceChildren(...scanResult.devices.map(d => {
-    const done = isRegistered(d);
-    const btn = el('button', {textContent: done ? '등록됨' : '등록', disabled: done, className: done ? '' : 'primary'});
+  const list = $('scanList'), fresh = scanResult.devices.filter(d => !isRegistered(d)), known = scanResult.devices.length - fresh.length;
+  if (!fresh.length) {
+    list.replaceChildren(el('p', {className: 'dim', textContent: known
+      ? '새로 찾은 카메라가 없습니다. 찾은 ' + known + '대는 모두 이미 등록되어 있습니다.'
+      : '찾은 카메라가 없습니다. 카메라 전원과 랜선, 폰 앱의 서버 시작 여부를 확인하세요.'}));
+    return;
+  }
+  list.replaceChildren(...fresh.map(d => {
+    const btn = el('button', {textContent: '등록', className: 'primary'});
     const detail = [KIND[d.kind], d.ip && (d.ip + (d.mask ? ' / ' + d.mask : '')), d.model && d.model !== d.name ? d.model : '', d.mac, '검색: ' + d.foundBy.join(', ')].filter(Boolean).join(' · ');
-    const box = el('div', {style: 'padding:10px 0;border-top:1px solid var(--line)'},
+    const box = el('div', {className: 'found'},
       el('div', {className: 'row'},
         el('div', {className: STATUS_CLS[d.status] || ''}, el('span', {className: 'dot'}), el('b', {textContent: d.name}), el('div', {className: 'dim', textContent: detail})),
         btn),
       el('div', {className: d.status === 'unreachable' ? 'err' : 'dim', textContent: d.message}));
     btn.onclick = () => {
-      if (!d.needsLogin) return addDraft(d);
+      if (!d.needsLogin) return addCam({...d.draft});
       if (box.querySelector('.login')) return;
       const user = el('input', {placeholder: '카메라 아이디 (예: admin)', autocapitalize: 'off', autocomplete: 'off'});
       const pass = el('input', {placeholder: '카메라 비밀번호', type: 'password', autocomplete: 'off'});
-      const go = el('button', {className: 'primary', textContent: '초안 만들기'});
+      const go = el('button', {className: 'primary', textContent: '목록에 추가'});
       go.onclick = async () => {
         let url = d.draft.url;
         if (d.xaddr) {
           go.disabled = true; go.textContent = '카메라에 확인 중…';
           try { url = (await api('discover/onvif', 'POST', {xaddr: d.xaddr, username: user.value, password: pass.value})).url; }
-          catch (e) { toast(e.message + ' — 기본 주소로 초안을 만들었습니다.'); }
+          catch (e) { toast(e.message + ' — 기본 주소로 추가했습니다.'); }
         }
-        addDraft(d, withLogin(url, user.value, pass.value));
+        addCam({...d.draft, url: withLogin(url, user.value, pass.value)});
       };
       box.append(el('div', {className: 'row login', style: 'margin-top:8px'}, user, pass, go));
       user.focus();
@@ -398,12 +864,14 @@ $('scanBtn').onclick = async () => {
   b.disabled = false; b.textContent = '다시 검색';
 };
 
-$('addCam').onclick =() => { cams.push({name: '카메라 ' + (cams.length + 1), type: 'rtsp', enabled: true, audio: true}); renderCams(); };
 $('saveBtn').onclick = async () => {
+  syncLimit(true);
   try {
-    const c = await api('config', 'PUT', {storageDir: $('sDir').value, limitBy, maxDays: parseFloat($('sDays').value) || 0, maxStorageGB: parseFloat($('sMax').value) || 0,
-      minFreeGB: parseFloat($('sFree').value) || 0, segmentMinutes: parseInt($('sSeg').value) || 5, cameras: cams});
-    cams = c.cameras || []; renderCams(); toast('저장했습니다. 녹화에 바로 적용됩니다.');
+    const c = await api('config', 'PUT', {storageDir: $('sDir').value, limitBy, maxDays: parseFloat($('sDays').value) || 0, maxStorageGB: parseFloat($('sMax').value) || 0, cameras: cams});
+    cams = c.cameras || []; openCams.clear(); newCams.clear();
+    $('sDays').value = c.maxDays; $('sMax').value = c.maxStorageGB; syncLimit(false);
+    renderCams(); renderScan(); toast('저장했습니다. 녹화에 바로 적용됩니다.');
+    refreshStatus();
   } catch (e) { toast(e.message); }
 };
 $('pwBtn').onclick = async () => {
@@ -415,7 +883,7 @@ $('pwBtn').onclick = async () => {
 async function start() {
   try { await api('status'); } catch { return; }
   $('login').classList.add('hide'); $('app').classList.remove('hide');
-  refreshStatus();
+  status = null; await refreshStatus();
 }
 start();
 </script>

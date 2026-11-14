@@ -29,9 +29,9 @@ func TestDailyBytes(t *testing.T) {
 		{Camera: "new", Start: now.Add(-10 * time.Second), End: now, Size: 6000},                      // too short
 	}
 	cams := []Camera{{ID: "a", Enabled: true}, {ID: "b", Enabled: true}, {ID: "off"}, {ID: "new", Enabled: true}}
-	perDay, measured := dailyBytes(recs, cams, now)
-	if perDay != 3*86400 || measured != 2 {
-		t.Fatalf("perDay=%d measured=%d", perDay, measured)
+	perDay, perCam := dailyBytes(recs, cams, now)
+	if perDay != 3*86400 || len(perCam) != 2 || perCam["b"] != 2*86400 {
+		t.Fatalf("perDay=%d perCam=%v", perDay, perCam)
 	}
 }
 
