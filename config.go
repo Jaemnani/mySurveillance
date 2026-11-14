@@ -56,7 +56,7 @@ type Config struct {
 }
 
 func (c Config) clone() Config {
-	c.Cameras = append([]Camera(nil), c.Cameras...)
+	c.Cameras = append([]Camera{}, c.Cameras...) // never nil: JSON must be [] not null
 	c.Tokens = append([]Token(nil), c.Tokens...)
 	return c
 }

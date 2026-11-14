@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net"
 	"os/exec"
 	"syscall"
 	"unsafe"
@@ -39,5 +40,15 @@ func hideConsole() {
 	hwnd, _, _ := windows.NewLazySystemDLL("kernel32.dll").NewProc("GetConsoleWindow").Call()
 	if hwnd != 0 {
 		windows.NewLazySystemDLL("user32.dll").NewProc("ShowWindow").Call(hwnd, 0)
+	}
+}
+
+// multicastLoop lets a multicast listener also hear senders on this computer
+// (Go turns that off by default; on Windows it is a receiver-side option).
+func multicastLoop(c *net.UDPConn) {
+	if rc, err := c.SyscallConn(); err == nil {
+		rc.Control(func(fd uintptr) {
+			windows.SetsockoptInt(windows.Handle(fd), windows.IPPROTO_IP, windows.IP_MULTICAST_LOOP, 1)
+		})
 	}
 }

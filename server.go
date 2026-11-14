@@ -105,6 +105,8 @@ func (a *App) routes() http.Handler {
 		}
 		writeJSON(w, 200, listDevices(a.ffmpeg))
 	}))
+	mux.HandleFunc("GET /api/v1/discover", a.auth(a.handleDiscover))
+	mux.HandleFunc("POST /api/v1/discover/onvif", a.auth(a.handleONVIFStream))
 	mux.HandleFunc("GET /api/v1/recordings", a.auth(a.handleRecordings))
 	mux.HandleFunc("GET /rec/{cam}/{file}", a.auth(a.handleRecFile))
 	mux.HandleFunc("GET /live/{cam}/{file}", a.auth(a.handleLiveFile))

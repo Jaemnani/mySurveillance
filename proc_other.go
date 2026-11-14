@@ -5,12 +5,14 @@ package main
 import (
 	"context"
 	"errors"
+	"net"
 	"os/exec"
 )
 
-func setProcAttrs(cmd *exec.Cmd) {}
-func bindChildren()              {}
-func hideConsole()               {}
+func setProcAttrs(cmd *exec.Cmd)   {}
+func bindChildren()                {}
+func hideConsole()                 {}
+func multicastLoop(c *net.UDPConn) {}
 
 var errNoAutostart = errors.New("이 운영체제의 자동 시작 설치는 아직 지원하지 않습니다 (systemd/launchd 예정)")
 
