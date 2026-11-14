@@ -167,7 +167,14 @@ func (w *worker) runOnce(ctx context.Context) error {
 		return err
 	}
 
-	cmd := exec.Command(s.FFmpeg, buildArgs(s)...)
+	srcCodec := ""
+	if s.Cam.Type == "rtsp" && !s.Cam.Transcode {
+		srcCodec = probeVideoCodec(ctx, s)
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+	}
+	cmd := exec.Command(s.FFmpeg, buildArgs(s, srcCodec)...)
 	cmd.Dir = s.StorageDir // output paths are relative, so no drive-letter escaping
 	setProcAttrs(cmd)
 	stdin, err := cmd.StdinPipe()
@@ -266,11 +273,11 @@ func redact(s string) string {
 
 var credRe = regexp.MustCompile(`(\w+://)[^/\s@|'"]*@`)
 
-func buildArgs(s spec) []string {
-	cam := s.Cam
-	a := []string{"-hide_banner", "-loglevel", "warning", "-nostats"}
-	encode := cam.Transcode
-	audioMap := "0:a:0?"
+// inputArgs returns the ffmpeg input options for a camera, whether its video
+// must be encoded, and which input carries the audio.
+func inputArgs(cam Camera) (a []string, encode bool, audioMap string) {
+	encode = cam.Transcode
+	audioMap = "0:a:0?"
 
 	switch cam.Type {
 	case "usb":
@@ -311,6 +318,34 @@ func buildArgs(s spec) []string {
 			audioMap = "1:a:0"
 		}
 	}
+	return a, encode, audioMap
+}
+
+var videoCodecRe = regexp.MustCompile(`Stream #0:\d+[^
+]*Video: (\w+)`)
+
+// probeVideoCodec asks ffmpeg what the camera sends ("hevc", "h264", ...).
+// It returns "" when the camera cannot be read; recording then proceeds with
+// defaults and fails or succeeds on its own.
+func probeVideoCodec(ctx context.Context, s spec) string {
+	in, _, _ := inputArgs(s.Cam)
+	pctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(pctx, s.FFmpeg, append([]string{"-hide_banner"}, in...)...)
+	setProcAttrs(cmd)
+	out, _ := cmd.CombinedOutput() // always "fails": no output file is given
+	if m := videoCodecRe.FindSubmatch(out); m != nil {
+		return string(m[1])
+	}
+	return ""
+}
+
+// buildArgs builds the full ffmpeg command. srcCodec is the camera's video
+// codec when the video is stored as-is (see probeVideoCodec).
+func buildArgs(s spec, srcCodec string) []string {
+	cam := s.Cam
+	in, encode, audioMap := inputArgs(cam)
+	a := append([]string{"-hide_banner", "-loglevel", "warning", "-nostats"}, in...)
 
 	a = append(a, "-map", "0:v:0")
 	if cam.Audio {
@@ -327,6 +362,15 @@ func buildArgs(s spec) []string {
 	} else {
 		a = append(a, "-c:v", "copy")
 	}
+	hevc := !encode && (srcCodec == "hevc" || srcCodec == "h265")
+	live := fmt.Sprintf("hls_segment_filename=%s/%s/seg%%05d.ts", liveSubdir, cam.ID)
+	if hevc {
+		// ffmpeg's default MP4 tag for H.265 is hev1, which iPhone, Safari and
+		// QuickTime refuse to play; hvc1 is the same video with the tag they
+		// accept. H.265 live streaming likewise needs fMP4 segments, not TS.
+		a = append(a, "-tag:v", "hvc1")
+		live = fmt.Sprintf("hls_segment_type=fmp4:hls_fmp4_init_filename=init.mp4:hls_segment_filename=%s/%s/seg%%05d.m4s", liveSubdir, cam.ID)
+	}
 
 	id := cam.ID
 	// One encode feeds two outputs: crash-safe MP4 files for the archive and a
@@ -335,8 +379,8 @@ func buildArgs(s spec) []string {
 	tee := fmt.Sprintf("[f=segment:strftime=1:segment_time=%d:segment_atclocktime=1:reset_timestamps=1:"+
 		"segment_format=mp4:segment_format_options=movflags=+frag_keyframe+empty_moov+default_base_moof]%s/%s/%%Y%%m%%d-%%H%%M%%S.mp4"+
 		"|[f=hls:onfail=ignore:hls_time=2:hls_list_size=6:hls_flags=delete_segments+omit_endlist:"+
-		"hls_segment_filename=%s/%s/seg%%05d.ts]%s/%s/index.m3u8",
-		s.SegmentSec, recSubdir, id, liveSubdir, id, liveSubdir, id)
+		"%s]%s/%s/index.m3u8",
+		s.SegmentSec, recSubdir, id, live, liveSubdir, id)
 	return append(a, "-flags", "+global_header", "-f", "tee", tee)
 }
 
