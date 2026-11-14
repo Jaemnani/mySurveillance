@@ -258,12 +258,24 @@ func newestSig(dir string) string {
 	}
 	for i := len(ents) - 1; i >= 0; i-- {
 		if strings.HasSuffix(ents[i].Name(), ".mp4") {
-			if fi, err := ents[i].Info(); err == nil {
+			if fi, err := statOpen(filepath.Join(dir, ents[i].Name())); err == nil {
 				return ents[i].Name() + ":" + strconv.FormatInt(fi.Size(), 10)
 			}
 		}
 	}
 	return ""
+}
+
+// statOpen reads a file's size and time through an open handle. A directory
+// listing is not enough for the file ffmpeg is writing: Windows only updates
+// the listed size and time when the writer closes it.
+func statOpen(path string) (os.FileInfo, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return f.Stat()
 }
 
 // redact hides credentials embedded in camera URLs before they reach logs/UI.
