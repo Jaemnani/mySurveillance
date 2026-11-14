@@ -42,8 +42,13 @@ type Token struct {
 }
 
 type Config struct {
-	Listen         string   `json:"listen"`
-	StorageDir     string   `json:"storageDir"`
+	Listen     string `json:"listen"`
+	StorageDir string `json:"storageDir"`
+	// LimitBy picks which limit deletes old recordings: "days" keeps MaxDays
+	// of footage, "size" keeps MaxStorageGB. The other value is only an
+	// estimate derived from the cameras' measured bitrate.
+	LimitBy        string   `json:"limitBy"`
+	MaxDays        float64  `json:"maxDays"`
 	MaxStorageGB   float64  `json:"maxStorageGB"`
 	MinFreeGB      float64  `json:"minFreeGB"`
 	SegmentMinutes int      `json:"segmentMinutes"`
@@ -82,6 +87,8 @@ func defaultConfig(dataDir string) Config {
 	return Config{
 		Listen:         ":8787",
 		StorageDir:     filepath.Join(dataDir, "recordings"),
+		LimitBy:        "days",
+		MaxDays:        30,
 		MaxStorageGB:   50,
 		MinFreeGB:      2,
 		SegmentMinutes: 5,
@@ -133,7 +140,16 @@ func validateSettings(c *Config) error {
 	if c.MaxStorageGB < 0 || c.MinFreeGB < 0 {
 		return errors.New("용량은 0 이상이어야 합니다")
 	}
-	if c.MaxStorageGB > 0 && c.MaxStorageGB < 0.2 {
+	if c.LimitBy == "" {
+		c.LimitBy = "days"
+	}
+	if c.LimitBy != "days" && c.LimitBy != "size" {
+		return errors.New("저장 기준은 days 또는 size 여야 합니다")
+	}
+	if c.MaxDays < 0 || c.MaxDays > 3650 {
+		return errors.New("최대 저장 기간은 0~3650일 사이여야 합니다 (0 = 제한 없음)")
+	}
+	if c.LimitBy == "size" && c.MaxStorageGB > 0 && c.MaxStorageGB < 0.2 {
 		return errors.New("최대 저장 용량은 0.2GB 이상이어야 합니다 (0 = 제한 없음)")
 	}
 	if c.SegmentMinutes < 1 || c.SegmentMinutes > 60 {

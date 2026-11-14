@@ -251,6 +251,8 @@ func (a *App) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 type settings struct {
 	StorageDir     string   `json:"storageDir"`
+	LimitBy        string   `json:"limitBy"`
+	MaxDays        float64  `json:"maxDays"`
 	MaxStorageGB   float64  `json:"maxStorageGB"`
 	MinFreeGB      float64  `json:"minFreeGB"`
 	SegmentMinutes int      `json:"segmentMinutes"`
@@ -259,7 +261,7 @@ type settings struct {
 
 func (a *App) handleGetConfig(w http.ResponseWriter, r *http.Request) {
 	c := a.Config()
-	writeJSON(w, 200, settings{c.StorageDir, c.MaxStorageGB, c.MinFreeGB, c.SegmentMinutes, c.Cameras})
+	writeJSON(w, 200, settings{c.StorageDir, c.LimitBy, c.MaxDays, c.MaxStorageGB, c.MinFreeGB, c.SegmentMinutes, c.Cameras})
 }
 
 func (a *App) handlePutConfig(w http.ResponseWriter, r *http.Request) {
@@ -270,6 +272,7 @@ func (a *App) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 	var verr error
 	err := a.Update(func(c *Config) error {
 		c.StorageDir, c.MaxStorageGB, c.MinFreeGB, c.SegmentMinutes = s.StorageDir, s.MaxStorageGB, s.MinFreeGB, s.SegmentMinutes
+		c.LimitBy, c.MaxDays = s.LimitBy, s.MaxDays
 		c.Cameras = s.Cameras
 		if c.Cameras == nil {
 			c.Cameras = []Camera{}

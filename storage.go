@@ -25,12 +25,17 @@ type Recording struct {
 }
 
 type StorageStatus struct {
-	UsedBytes      int64      `json:"usedBytes"`
-	MaxBytes       int64      `json:"maxBytes"` // 0 = unlimited
-	DiskFreeBytes  uint64     `json:"diskFreeBytes"`
-	DiskTotalBytes uint64     `json:"diskTotalBytes"`
-	Files          int        `json:"files"`
-	Oldest         *time.Time `json:"oldest,omitempty"`
+	UsedBytes       int64      `json:"usedBytes"`
+	MaxBytes        int64      `json:"maxBytes"` // 0 = unlimited; estimated when limiting by days
+	LimitBy         string     `json:"limitBy"`
+	MaxDays         float64    `json:"maxDays"`
+	BytesPerDay     int64      `json:"bytesPerDay"` // measured for the enabled cameras, 0 = not known yet
+	CamerasEnabled  int        `json:"camerasEnabled"`
+	CamerasMeasured int        `json:"camerasMeasured"` // enabled cameras included in BytesPerDay
+	DiskFreeBytes   uint64     `json:"diskFreeBytes"`
+	DiskTotalBytes  uint64     `json:"diskTotalBytes"`
+	Files           int        `json:"files"`
+	Oldest          *time.Time `json:"oldest,omitempty"`
 }
 
 type Storage struct {
@@ -63,6 +68,12 @@ func listRecordings(storageDir, cam string) []Recording {
 			URL:    "/rec/" + cam + "/" + e.Name(),
 		})
 	}
+	if n := len(out); n > 0 { // the newest file may still be open for writing
+		if fi, err := statOpen(filepath.Join(storageDir, recSubdir, cam, out[n-1].File)); err == nil {
+			out[n-1].End, out[n-1].Size = fi.ModTime(), fi.Size()
+			out[n-1].Active = time.Since(fi.ModTime()) < 20*time.Second
+		}
+	}
 	return out
 }
 
@@ -77,8 +88,39 @@ func listAll(storageDir string) []Recording {
 	return all
 }
 
+// dailyBytes measures how much the enabled cameras write per day, from what
+// they recorded over the last 24 hours. measured counts the cameras that have
+// enough footage to be included.
+func dailyBytes(all []Recording, cams []Camera, now time.Time) (perDay int64, measured int) {
+	type acc struct {
+		bytes int64
+		dur   time.Duration
+	}
+	by := map[string]*acc{}
+	for _, r := range all {
+		d := r.End.Sub(r.Start)
+		if now.Sub(r.Start) > 24*time.Hour || d <= 0 || d > 2*time.Hour {
+			continue
+		}
+		a := by[r.Camera]
+		if a == nil {
+			a = &acc{}
+			by[r.Camera] = a
+		}
+		a.bytes += r.Size
+		a.dur += d
+	}
+	for _, c := range cams {
+		if a := by[c.ID]; c.Enabled && a != nil && a.dur >= time.Minute {
+			perDay += int64(float64(a.bytes) / a.dur.Seconds() * 86400)
+			measured++
+		}
+	}
+	return perDay, measured
+}
+
 // enforce deletes the oldest recordings until the archive fits the configured
-// quota and the disk keeps its minimum free space.
+// limit (age or size) and the disk keeps its minimum free space.
 func (s *Storage) enforce(cfg Config) {
 	all := listAll(cfg.StorageDir)
 	sort.Slice(all, func(i, j int) bool { return all[i].Start.Before(all[j].Start) })
@@ -86,19 +128,30 @@ func (s *Storage) enforce(cfg Config) {
 	for _, r := range all {
 		used += r.Size
 	}
-	maxBytes := int64(cfg.MaxStorageGB * (1 << 30))
+	now := time.Now()
+	perDay, measured := dailyBytes(all, cfg.Cameras, now)
+	byDays := cfg.LimitBy != "size"
+	var maxBytes int64
+	var maxAge time.Duration
+	if byDays {
+		maxAge = time.Duration(cfg.MaxDays * 24 * float64(time.Hour))
+		maxBytes = int64(cfg.MaxDays * float64(perDay)) // estimate, not enforced
+	} else {
+		maxBytes = int64(cfg.MaxStorageGB * (1 << 30))
+	}
 	minFree := uint64(cfg.MinFreeGB * (1 << 30))
 	free, total, _ := diskFree(cfg.StorageDir)
 
 	deleted := 0
 	for len(all) > 0 {
-		over := maxBytes > 0 && used > maxBytes
+		r := all[0]
+		over := !byDays && maxBytes > 0 && used > maxBytes
+		old := byDays && maxAge > 0 && now.Sub(r.End) > maxAge
 		low := total > 0 && free < minFree
-		if !over && !low {
+		if !over && !old && !low {
 			break
 		}
-		r := all[0]
-		if time.Since(r.End) < 2*time.Minute {
+		if now.Sub(r.End) < 2*time.Minute {
 			break // never delete what is being written right now
 		}
 		all = all[1:]
@@ -114,7 +167,16 @@ func (s *Storage) enforce(cfg Config) {
 		log.Printf("저장 용량 확보: 오래된 녹화 %d개 삭제", deleted)
 	}
 
-	st := StorageStatus{UsedBytes: used, MaxBytes: maxBytes, DiskFreeBytes: free, DiskTotalBytes: total, Files: len(all)}
+	st := StorageStatus{UsedBytes: used, MaxBytes: maxBytes, DiskFreeBytes: free, DiskTotalBytes: total, Files: len(all),
+		LimitBy: "size", MaxDays: cfg.MaxDays, BytesPerDay: perDay, CamerasMeasured: measured}
+	if byDays {
+		st.LimitBy = "days"
+	}
+	for _, c := range cfg.Cameras {
+		if c.Enabled {
+			st.CamerasEnabled++
+		}
+	}
 	if len(all) > 0 {
 		t := all[0].Start
 		st.Oldest = &t
