@@ -15,7 +15,7 @@ import (
 //go:embed web
 var webFS embed.FS
 
-var liveFileRe = regexp.MustCompile(`^(index\.m3u8|seg\d+\.ts)$`)
+var liveFileRe = regexp.MustCompile(`^(index\.m3u8|init\.mp4|seg\d+\.(ts|m4s))$`)
 
 const cookieName = "ms_token"
 
@@ -184,8 +184,8 @@ func (a *App) handlePassword(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	if len(req.New) < 8 {
-		writeErr(w, 400, "새 비밀번호는 8자 이상이어야 합니다")
+	if len(req.New) < 4 {
+		writeErr(w, 400, "새 비밀번호는 4자 이상이어야 합니다")
 		return
 	}
 	if a.limiter.blocked() || !checkPassword(a.Config().PasswordHash, req.Current) {
